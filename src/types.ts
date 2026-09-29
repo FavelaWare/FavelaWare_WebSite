@@ -42,15 +42,6 @@ export const excecaoDeSistema = (mensagem: string): ResultadoOperacao => ({
 // CONTEÚDO DO SITE PÚBLICO
 // ============================================
 
-/** Foto em destaque na página inicial (as da página Galeria ficam em src/data/galeria.ts) */
-export interface FotoEmDestaque {
-  id: number;
-  titulo: string;
-  descricao: string;
-  categoria: string;
-  imagem: string;
-}
-
 /** Parceiro ou idealizador do projeto (fonte única: src/data/parceiros.ts) */
 export interface Parceiro {
   nome: string;
@@ -79,6 +70,8 @@ export interface Premio {
   titulo: string;
   descricao: string;
   ano: string;
+  /** Quem deu o prêmio, em forma curta (a faixa da Home mostra ao lado do título) */
+  concedidoPor?: string;
   link?: string;
   imagens: string[];
   icone: string;

@@ -16,7 +16,7 @@ import type { Parceiro } from '../types';
 /** Logo do parceiro; se a imagem falhar, mostra o emoji */
 const LogoDoParceiro: React.FC<{ parceiro: Parceiro }> = ({ parceiro }) => {
   const [imagemFalhou, setImagemFalhou] = useState(false);
-  if (imagemFalhou) return <span className="text-6xl">{parceiro.emoji}</span>;
+  if (imagemFalhou) return <span className="text-4xl sm:text-6xl leading-none">{parceiro.emoji}</span>;
   return (
     <img
       src={parceiro.imagem}
@@ -106,24 +106,28 @@ const Parceiros: React.FC = () => {
 
         {/* Grade de parceiros */}
         <motion.div
-          className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-8"
+          className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4 sm:gap-6 md:gap-8 xl:gap-6"
           variants={containerVariants}
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true, margin: '-100px' }}
         >
           {parceiros.map((parceiro) => (
-            <motion.div key={parceiro.nome} variants={itemVariants} className="group relative">
-              {/* Card */}
-              <div className="relative aspect-square bg-white rounded-3xl p-6 flex flex-col items-center justify-center shadow-lg border-2 border-gray-200 group-hover:border-favela-green-500 transition-all duration-300">
+            <motion.div key={parceiro.nome} variants={itemVariants} title={parceiro.nome} className="group relative">
+              {/* Card: todos idênticos. Logo e nome têm altura fixa (o nome sempre
+                  reserva 2 linhas), então nome longo não empurra o logo nem faz o
+                  cartão crescer. Colunas, espaços e logo foram medidos para o conteúdo
+                  caber no quadrado de 320px a telas largas (6 colunas só do xl em diante) */}
+              <div className="relative aspect-square overflow-hidden bg-white rounded-3xl p-4 sm:p-5 flex flex-col items-center justify-center shadow-lg border-2 border-gray-200 group-hover:border-favela-green-500 transition-all duration-300">
                 {/* Logo */}
-                <div className="relative z-10 w-20 h-20 mb-4 flex items-center justify-center">
+                <div className="relative z-10 w-12 h-12 sm:w-20 sm:h-20 shrink-0 mb-2 sm:mb-3 flex items-center justify-center">
                   <LogoDoParceiro parceiro={parceiro} />
                 </div>
 
-                {/* Name */}
-                <p className="relative z-10 text-sm font-bold text-gray-800 text-center group-hover:text-favela-green-600 transition-colors duration-300">
-                  {parceiro.nome}
+                {/* Nome: caixa de 2 linhas (text-sm com leading-5 = 2 × 20px) */}
+                <p className="relative z-10 h-10 shrink-0 w-full flex items-center justify-center text-sm leading-5 font-bold text-gray-800 text-center group-hover:text-favela-green-600 transition-colors duration-300">
+                  {/* O limite de linhas fica no span: line-clamp troca o display e desligaria o flex */}
+                  <span className="line-clamp-2">{parceiro.nome}</span>
                 </p>
               </div>
             </motion.div>
