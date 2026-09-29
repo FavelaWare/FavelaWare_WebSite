@@ -2,7 +2,7 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-import { edicoesDaGaleria, enderecoDaFoto, type FotoDaGaleria } from './galeria';
+import { edicoesDaGaleria, enderecoDaFoto, previaDaEdicao, type FotoDaGaleria } from './galeria';
 
 const fotosDa = (titulo: string) => edicoesDaGaleria.find((edicao) => edicao.titulo === titulo)?.fotos ?? [];
 const todasAsFotos = edicoesDaGaleria.flatMap((edicao) => edicao.fotos);
@@ -47,6 +47,35 @@ describe('fotos da Galeria por edição', () => {
       (foto) => foto.arquivo && !existsSync(join(process.cwd(), 'public', 'imgs', 'gallery', foto.arquivo)),
     );
     expect(faltando).toEqual([]);
+  });
+});
+
+describe('prévia da edição (página inicial)', () => {
+  const foto = (evento: string, n: number): FotoDaGaleria => ({
+    arquivo: `${evento}-${n}.webp`,
+    evento,
+    legenda: evento,
+  });
+
+  it('mistura os eventos, na ordem da edição, uma foto de cada por rodada', () => {
+    const fotos = [foto('A', 1), foto('A', 2), foto('A', 3), foto('B', 1), foto('C', 1), foto('C', 2)];
+    expect(previaDaEdicao(fotos, 5).map((f) => f.arquivo)).toEqual([
+      'A-1.webp',
+      'B-1.webp',
+      'C-1.webp',
+      'A-2.webp',
+      'C-2.webp',
+    ]);
+  });
+
+  it('para quando acabam as fotos', () => {
+    expect(previaDaEdicao([foto('A', 1)], 16)).toHaveLength(1);
+  });
+
+  it('a prévia real da edição mais recente tem 16 fotos e mais de um evento', () => {
+    const previa = previaDaEdicao(edicoesDaGaleria[0].fotos, 16);
+    expect(previa).toHaveLength(16);
+    expect(new Set(previa.map((f) => f.evento)).size).toBeGreaterThan(1);
   });
 });
 

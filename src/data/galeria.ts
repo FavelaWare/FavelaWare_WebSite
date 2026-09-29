@@ -1,5 +1,5 @@
 /**
- * Fotos do site: o destaque da página inicial e a página Galeria, por edição.
+ * Fotos da página Galeria, por edição (a prévia da página inicial usa as mesmas).
  *
  * A foto da Galeria mora em um de dois lugares:
  * - `arquivo`: no próprio site, em /imgs/gallery/ (1ª e 2ª edição)
@@ -9,7 +9,6 @@
  *   A pasta precisa estar como "qualquer pessoa com o link"; se o dono tirar o
  *   compartilhamento ou apagar a foto, ela some do site.
  */
-import type { FotoEmDestaque } from '../types';
 
 /**
  * Foto da página Galeria: tem `arquivo` ou `drive`, nunca os dois.
@@ -33,30 +32,29 @@ export function enderecoDaFoto(foto: FotoDaGaleria, tamanho: keyof typeof LARGUR
   return `/imgs/gallery/${foto.arquivo}`;
 }
 
+/**
+ * Prévia de uma edição com `quantas` fotos, misturando os eventos: a 1ª foto de
+ * cada evento, depois a 2ª de cada, e assim por diante. Os eventos seguem a
+ * ordem da edição (o mais recente primeiro), para a prévia não ser só de um evento.
+ */
+export function previaDaEdicao(fotos: FotoDaGaleria[], quantas: number): FotoDaGaleria[] {
+  const porEvento = new Map<string, FotoDaGaleria[]>();
+  for (const foto of fotos) porEvento.set(foto.evento, [...(porEvento.get(foto.evento) ?? []), foto]);
+
+  const previa: FotoDaGaleria[] = [];
+  for (let rodada = 0; previa.length < quantas; rodada++) {
+    const daRodada = [...porEvento.values()].map((doEvento) => doEvento[rodada]).filter(Boolean);
+    if (daRodada.length === 0) break;
+    previa.push(...daRodada);
+  }
+  return previa.slice(0, quantas);
+}
+
 /** Uma edição da Galeria, com as fotos dela */
 export interface EdicaoDaGaleria {
   titulo: string;
   fotos: FotoDaGaleria[];
 }
-
-/** Fotos grandes da página inicial */
-export const fotosEmDestaque: FotoEmDestaque[] = [
-  {
-    id: 1,
-    titulo: 'Abertura do Projeto 2022',
-    descricao:
-      'Abertura do projeto com a professora Samara, Rafaela, Tatiana e Iracema, os parceiros da Mundiale, das Obras Pavonianas e alunos',
-    categoria: 'Evento',
-    imagem: '/imgs/gallery/AberturaDoProjeto2022.webp',
-  },
-  {
-    id: 2,
-    titulo: 'Formatura 2022',
-    descricao: 'Formatura do projeto FavelaWare na Mundiale - 2022',
-    categoria: 'Formatura',
-    imagem: '/imgs/gallery/Formatura2022.webp',
-  },
-];
 
 /**
  * Fotos da página Galeria, por edição, da mais recente para a mais antiga.

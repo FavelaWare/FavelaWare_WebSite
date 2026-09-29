@@ -398,13 +398,21 @@ interface CarrosselDeFotosProps {
   /** A página pausa todos os carrosséis enquanto uma foto está ampliada */
   pausado: boolean;
   aoAbrir: (foto: FotoDaGaleria) => void;
+  /** Sem a linha de cima (quantidade, pausar e setas): a prévia da Home fica só com as fotos */
+  semControles?: boolean;
 }
 
 /** Botão redondo das setas e do pausar */
 const classeBotao =
   'w-10 h-10 flex items-center justify-center rounded-full bg-white text-[#2d2a5f] shadow-md border border-gray-200 hover:border-favela-green-500 hover:text-favela-green-600 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-favela-green-500';
 
-const CarrosselDeFotos: React.FC<CarrosselDeFotosProps> = ({ titulo, fotos, pausado, aoAbrir }) => {
+const CarrosselDeFotos: React.FC<CarrosselDeFotosProps> = ({
+  titulo,
+  fotos,
+  pausado,
+  aoAbrir,
+  semControles = false,
+}) => {
   // As fotos só são lidas na montagem: os dados da Galeria são fixos (src/data/galeria.ts)
   const [fileiras, setFileiras] = useState(() => dividirEmFileiras(fotos));
   const [pausadoPeloBotao, setPausadoPeloBotao] = useState(false);
@@ -541,31 +549,34 @@ const CarrosselDeFotos: React.FC<CarrosselDeFotosProps> = ({ titulo, fotos, paus
 
   return (
     <section aria-roledescription="carrossel" aria-label={titulo} onKeyDown={aoTeclar}>
-      {/* Quantidade de fotos e controles, na coluna do site (o título da edição fica na
-          página); as fileiras abaixo usam a largura toda */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-wrap items-center justify-between gap-3 mb-4">
-        <p className="text-sm text-gray-600">{fotos.length} fotos</p>
+      {!semControles && (
+        <>
+          {/* Quantidade de fotos e controles, na coluna do site (o título da edição fica na
+            página); as fileiras abaixo usam a largura toda */}
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-wrap items-center justify-between gap-3 mb-4">
+            <p className="text-sm text-gray-600">{fotos.length} fotos</p>
 
-        <div className="flex items-center gap-2">
-          {!reduzirMovimento && (
-            <button
-              type="button"
-              onClick={() => setPausadoPeloBotao((estavaPausado) => !estavaPausado)}
-              aria-label={pausadoPeloBotao ? `Continuar o carrossel ${titulo}` : `Pausar o carrossel ${titulo}`}
-              aria-pressed={pausadoPeloBotao}
-              className={classeBotao}
-            >
-              <span aria-hidden="true">{pausadoPeloBotao ? '▶' : '❚❚'}</span>
-            </button>
-          )}
-          <button type="button" onClick={() => avancar(-1)} aria-label="Fotos anteriores" className={classeBotao}>
-            <span aria-hidden="true">←</span>
-          </button>
-          <button type="button" onClick={() => avancar(1)} aria-label="Próximas fotos" className={classeBotao}>
-            <span aria-hidden="true">→</span>
-          </button>
-        </div>
-      </div>
+            <div className="flex items-center gap-2">
+              {!reduzirMovimento && (
+                <button
+                  type="button"
+                  onClick={() => setPausadoPeloBotao((estavaPausado) => !estavaPausado)}
+                  aria-label={pausadoPeloBotao ? `Continuar o carrossel ${titulo}` : `Pausar o carrossel ${titulo}`}
+                  className={classeBotao}
+                >
+                  <span aria-hidden="true">{pausadoPeloBotao ? '▶' : '❚❚'}</span>
+                </button>
+              )}
+              <button type="button" onClick={() => avancar(-1)} aria-label="Fotos anteriores" className={classeBotao}>
+                <span aria-hidden="true">←</span>
+              </button>
+              <button type="button" onClick={() => avancar(1)} aria-label="Próximas fotos" className={classeBotao}>
+                <span aria-hidden="true">→</span>
+              </button>
+            </div>
+          </div>
+        </>
+      )}
 
       {/* Fileiras: o corte é aqui, para a foto que troca poder cruzar de uma fileira para a outra */}
       <div

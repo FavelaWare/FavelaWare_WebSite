@@ -25,7 +25,7 @@ import Footer from '../components/Footer';
 import Lightbox, { type FotoLightbox } from '../components/Lightbox';
 import CabecalhoDaPagina from '../components/CabecalhoDaPagina';
 import { cascata, surgirDeBaixo } from '../components/animacoes';
-import type { ArtigoCientifico, Premio } from '../types';
+import { artigos, premios } from '../data/reconhecimentos';
 
 /**
  * COMPONENTE RECONHECIMENTOS
@@ -42,44 +42,6 @@ const Reconhecimentos: React.FC = () => {
   // useCallback mantém a mesma função entre renders: o Lightbox usa aoFechar
   // como dependência do useEffect da tecla Esc
   const fecharImagem = useCallback(() => setImagemAmpliada(null), []);
-
-  // ============================================
-  // DADOS DOS ARTIGOS CIENTÍFICOS
-  // ============================================
-
-  const artigos: ArtigoCientifico[] = [
-    {
-      id: 1,
-      titulo:
-        'Extension Project Based on Flipped Classroom to the Development of Hard and Soft Skills in Brazilian Outskirts: Case studies',
-      descricao:
-        'Artigo científico sobre o projeto de extensão baseado em sala de aula invertida para o desenvolvimento de habilidades técnicas e comportamentais em comunidades brasileiras.',
-      doi: 'https://doi.org/10.33422/ijsfle.v2i2.464',
-      ano: '2024',
-      icone: '📄',
-    },
-  ];
-
-  // ============================================
-  // DADOS DOS PRÊMIOS
-  // ============================================
-
-  const premios: Premio[] = [
-    {
-      id: 1,
-      titulo: 'Prêmio Ser Humano 2023',
-      descricao:
-        'Reconhecimento pela ABRH-Brasil pelo impacto social e desenvolvimento humano através da capacitação de jovens programadores em comunidades de Belo Horizonte/MG.',
-      ano: '2023',
-      link: 'https://www.abrhbrasil.org.br/psh/',
-      imagens: [
-        '/imgs/gallery/premiacao-01.webp',
-        '/imgs/gallery/premiacao-02.webp',
-        '/imgs/gallery/premiacao-03.webp',
-      ],
-      icone: '🏆',
-    },
-  ];
 
   // ============================================
   // RENDERIZAÇÃO DO COMPONENTE
