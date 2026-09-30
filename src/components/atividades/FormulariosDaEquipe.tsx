@@ -4,7 +4,8 @@
  * ============================================
  *
  * Usados pelo professor e pelo gestor na página de trilhas:
- * - FormularioDeAtividade: publicar ou editar (título, enunciado, trilha, prazo e o
+ * - FormularioDeAtividade: publicar ou editar (título, enunciado, link do enunciado no
+ *   GitBook, trilha, prazo opcional e o
  *   que o aluno precisa enviar: comentário, link de um tipo, arquivo de certos formatos);
  * - Corrigir: histórico da entrega + feedback, nota (0 a 100) e Concluída/Refazer.
  * As regras (quem pode, prazo, só a última tentativa) ficam no banco.
@@ -40,7 +41,8 @@ export const FormularioDeAtividade: React.FC<{
     trilhaId: atividade?.trilha_id ?? trilhaInicial ?? 0,
     titulo: atividade?.titulo ?? '',
     enunciado: atividade?.enunciado ?? '',
-    prazo: atividade ? paraCampoDataHora(atividade.prazo) : '',
+    linkEnunciado: atividade?.link_enunciado ?? '',
+    prazo: atividade?.prazo ? paraCampoDataHora(atividade.prazo) : '',
   });
   const [regras, setRegras] = useState<RegrasDeEntrega>(() =>
     atividade
@@ -69,14 +71,15 @@ export const FormularioDeAtividade: React.FC<{
   const salvar = async (e: React.FormEvent) => {
     e.preventDefault();
     setMensagem(null);
-    if (!campos.prazo) return setMensagem({ tipo: 'erro', texto: 'Escolha o prazo.' });
     setSalvando(true);
     const falha = await servicoAtividades.salvar(
       {
         trilha_id: campos.trilhaId,
         titulo: campos.titulo,
         enunciado: campos.enunciado,
-        prazo: deCampoDataHora(campos.prazo),
+        link_enunciado: campos.linkEnunciado,
+        // Campo vazio = sem prazo (a entrega fica aberta)
+        prazo: campos.prazo ? deCampoDataHora(campos.prazo) : null,
         ...regras,
       },
       atividade ? { id: atividade.id } : { turmaId },
@@ -140,20 +143,40 @@ export const FormularioDeAtividade: React.FC<{
         />
       </div>
       <div>
+        <label htmlFor="atividade-link-enunciado" className={classeRotulo}>
+          Link do enunciado (GitBook)
+        </label>
+        <input
+          id="atividade-link-enunciado"
+          type="url"
+          inputMode="url"
+          maxLength={2000}
+          placeholder="https://favelaware.gitbook.io/favelaware/..."
+          value={campos.linkEnunciado}
+          disabled={salvando}
+          className={classeCampo}
+          aria-describedby="atividade-link-enunciado-apoio"
+          onChange={(e) => setCampos((c) => ({ ...c, linkEnunciado: e.target.value }))}
+        />
+        <p id="atividade-link-enunciado-apoio" className={`mt-1 ${texto.apoio}`}>
+          Opcional. O aluno lê a atividade completa neste link e entrega aqui no portal.
+        </p>
+      </div>
+      <div>
         <label htmlFor="atividade-prazo" className={classeRotulo}>
-          Prazo (horário de Brasília)
+          Prazo (horário de Brasília, opcional)
         </label>
         <input
           id="atividade-prazo"
+          aria-describedby="atividade-prazo-apoio"
           type="datetime-local"
-          required
           value={campos.prazo}
           disabled={salvando}
           className={classeCampo}
           onChange={(e) => setCampos((c) => ({ ...c, prazo: e.target.value }))}
         />
-        <p className={`mt-1 ${texto.apoio}`}>
-          Depois do prazo, o envio fecha. Quem receber "Refazer" ainda pode reenviar.
+        <p id="atividade-prazo-apoio" className={`mt-1 ${texto.apoio}`}>
+          Sem prazo, o envio fica aberto. Depois do prazo, o envio fecha. Quem receber "Refazer" ainda pode reenviar.
         </p>
       </div>
       <RegrasDaEntrega regras={regras} aoMudar={setRegras} desabilitado={salvando} />

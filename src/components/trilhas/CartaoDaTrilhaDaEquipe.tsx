@@ -116,11 +116,23 @@ const CartaoDaTrilhaDaEquipe: React.FC<PropsCartao> = ({
                     <div className="min-w-0 flex-1">
                       <p className={texto.destaque}>{a.titulo}</p>
                       <p className={texto.apoio}>
-                        Prazo: {formatarDataHora(a.prazo)}
+                        {a.prazo ? `Prazo: ${formatarDataHora(a.prazo)}` : 'Sem prazo'}
                         {encerrada ? ' (encerrado)' : ''}
                         {mostrarEntregas && ` · ${entregaram} de ${totalDeAlunos} entregaram`}
                       </p>
                       {resumoDasRegras(a) && <p className={`mt-0.5 ${texto.apoio}`}>Exige: {resumoDasRegras(a)}</p>}
+                      {a.link_enunciado && (
+                        <a
+                          href={a.link_enunciado}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className={`mt-0.5 inline-flex items-center gap-1 rounded text-sm text-favela-green-700 hover:underline ${foco}`}
+                        >
+                          Enunciado no GitBook
+                          <IconeLinkExterno className="h-3.5 w-3.5" />
+                          <span className="sr-only">(abre em nova aba)</span>
+                        </a>
+                      )}
                     </div>
                     {mostrarEntregas && aguardando > 0 && (
                       <span className={`${selo.base} ${selo.informacao}`}>{aguardando} para corrigir</span>

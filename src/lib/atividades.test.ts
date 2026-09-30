@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 vi.mock('./supabase', () => import('../testes/supabaseFalso'));
 
 import {
+  arrumar,
   resumoNaTurma,
   paraCorrigir,
   servicoAtividades,
@@ -10,6 +11,7 @@ import {
   type Atividade,
   type Tentativa,
 } from './atividades';
+import { SEM_REGRAS } from './entregas';
 
 const tentativa = (participante: number, status: Tentativa['status'], numero = 1): Tentativa => ({
   id: participante * 10 + numero,
@@ -29,12 +31,13 @@ const tentativa = (participante: number, status: Tentativa['status'], numero = 1
   avaliada_por_nome: null,
 });
 
-const atividade = (prazo: string, tentativas: Tentativa[]): Atividade => ({
-  id: 1,
+const atividade = (prazo: string | null, tentativas: Tentativa[], id = 1): Atividade => ({
+  id,
   turma_id: 1,
   trilha_id: 1,
   titulo: 'Atividade',
   enunciado: 'Faça',
+  link_enunciado: null,
   prazo,
   trilha: null,
   tentativas,
@@ -70,10 +73,50 @@ describe('situação do aluno', () => {
     expect(situacaoDoAluno([], '2000-01-01T00:00:00Z')).toBe('encerrada');
   });
 
+  it('sem prazo: nunca encerra (o 1º envio fica aberto)', () => {
+    expect(situacaoDoAluno([], null)).toBe('pendente');
+    expect(resumoNaTurma(atividade(null, []), new Set([1])).encerrada).toBe(false);
+  });
+
   it('com entrega: a situação da última tentativa', () => {
     expect(situacaoDoAluno([tentativa(1, 'refazer', 1), tentativa(1, 'concluida', 2)], '2000-01-01T00:00:00Z')).toBe(
       'concluida',
     );
+  });
+});
+
+describe('ordem das atividades', () => {
+  it('por prazo, as sem prazo no fim e, no empate, pela ordem de criação', () => {
+    const lista = [
+      atividade(null, [], 5),
+      atividade('2030-01-01T00:00:00Z', [], 4),
+      atividade(null, [], 2),
+      atividade('2029-01-01T00:00:00Z', [], 3),
+      atividade('2030-01-01T00:00:00Z', [], 1),
+    ];
+    expect(arrumar(lista).map((a) => a.id)).toEqual([3, 1, 4, 2, 5]);
+  });
+});
+
+describe('atividade: conferência antes de gravar', () => {
+  const salvar = (link_enunciado: string) =>
+    servicoAtividades.salvar(
+      { trilha_id: 1, titulo: 'A', enunciado: 'B', link_enunciado, prazo: null, ...SEM_REGRAS },
+      { turmaId: 1 },
+    );
+
+  it('recusa link do enunciado que não seja https', async () => {
+    const aviso = 'O link do enunciado precisa começar com https://';
+    expect(await salvar('http://favelaware.gitbook.io/x')).toBe(aviso);
+    expect(await salvar('javascript:alert(1)')).toBe(aviso);
+    expect(await salvar('https://com espaço')).toBe(aviso);
+  });
+
+  it('aceita link https ou vazio, sem prazo (chega ao banco, que o falso recusa)', async () => {
+    await expect(salvar('https://favelaware.gitbook.io/favelaware/6-html')).rejects.toThrow(
+      'Teste não deveria chegar ao banco',
+    );
+    await expect(salvar('   ')).rejects.toThrow('Teste não deveria chegar ao banco');
   });
 });
 
