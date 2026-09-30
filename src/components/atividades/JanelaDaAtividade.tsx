@@ -13,9 +13,16 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { IconeAlerta, IconeClipe, IconeEnviarArquivo, IconeLink, IconeRelogio } from '../admin/Icones';
+import {
+  IconeAlerta,
+  IconeClipe,
+  IconeEnviarArquivo,
+  IconeLink,
+  IconeLinkExterno,
+  IconeRelogio,
+} from '../admin/Icones';
 import Janela from '../admin/Janela';
-import { Aviso, Botao, classeCampo, classeRotulo, classeTextoLongo, type Mensagem } from '../admin/Ui';
+import { Aviso, Botao, classeCampo, classeDoBotao, classeRotulo, classeTextoLongo, type Mensagem } from '../admin/Ui';
 import { estado, foco, selo, texto } from '../admin/designSystem';
 import HistoricoDeTentativas from './HistoricoDeTentativas';
 import {
@@ -161,8 +168,8 @@ const JanelaDaAtividade: React.FC<PropsJanela> = ({ atividade, participanteId, d
       <span className={`${selo.base} ${COR_SITUACAO[situacao]}`}>{ROTULO_SITUACAO[situacao]}</span>
       <span className={`ml-auto flex items-center gap-1.5 ${texto.apoio}`}>
         <IconeRelogio className="h-4 w-4" />
-        {formatarDataHora(atividade.prazo)}
-        {situacao === 'pendente' && (
+        {atividade.prazo ? formatarDataHora(atividade.prazo) : 'Sem prazo'}
+        {situacao === 'pendente' && atividade.prazo && (
           <span className="font-semibold text-gray-700">· {quantoFalta(atividade.prazo)}</span>
         )}
       </span>
@@ -203,6 +210,19 @@ const JanelaDaAtividade: React.FC<PropsJanela> = ({ atividade, participanteId, d
           <div className="rounded-lg border-l-4 border-favela-green-500 bg-gray-50 p-4">
             <p className={`whitespace-pre-wrap break-words leading-relaxed ${texto.corpo}`}>{atividade.enunciado}</p>
           </div>
+          {/* A atividade completa fica no GitBook; a entrega é feita aqui */}
+          {atividade.link_enunciado && (
+            <a
+              href={atividade.link_enunciado}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`mt-3 ${classeDoBotao('primario')}`}
+            >
+              Ler a atividade completa
+              <IconeLinkExterno className="h-4 w-4" />
+              <span className="sr-only">(abre em nova aba)</span>
+            </a>
+          )}
         </section>
 
         {temRegras && envioAberto && (
@@ -224,7 +244,7 @@ const JanelaDaAtividade: React.FC<PropsJanela> = ({ atividade, participanteId, d
           </section>
         )}
 
-        {situacao === 'encerrada' && (
+        {situacao === 'encerrada' && atividade.prazo && (
           <div role="status" className={`flex gap-3 rounded-lg border p-4 text-sm ${estado.atencao}`}>
             <IconeAlerta className="mt-0.5 h-5 w-5" />
             <div>

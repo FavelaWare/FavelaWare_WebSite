@@ -3,7 +3,8 @@
  * ATIVIDADES (CRIAÇÃO E CORREÇÃO)
  * ============================================
  *
- * - Professor da turma e gestor criam a atividade (turma + trilha + prazo).
+ * - Professor da turma e gestor criam a atividade (turma + trilha; prazo e link do
+ *   enunciado no GitBook são opcionais: sem prazo, a entrega fica aberta).
  * - O aluno entrega com link, texto e/ou arquivo (ver lib/entregas.ts).
  * - O professor responde com feedback, nota (0 a 100) e "Concluída" ou "Refazer";
  *   no "Refazer" o aluno envia de novo (2ª tentativa...).
@@ -16,6 +17,7 @@ import type { RegrasDeEntrega } from './entregas';
 import { servicoSessao } from './sessao';
 import { supabase } from './supabase';
 import { servicoTurmas, type TurmaComEdicao } from './turmas';
+import { linkValido, vazioViraNulo } from '../utils/texto';
 
 export type StatusTentativa = 'aguardando' | 'concluida' | 'refazer';
 
@@ -45,7 +47,10 @@ export interface Atividade extends RegrasDeEntrega {
   trilha_id: number;
   titulo: string;
   enunciado: string;
-  prazo: string;
+  /** Enunciado completo fora do portal (ex.: GitBook); null = só o enunciado daqui */
+  link_enunciado: string | null;
+  /** null = sem prazo: a atividade não encerra */
+  prazo: string | null;
   trilha: { nome: string; ordem: number } | null;
   tentativas: Tentativa[];
 }
@@ -78,13 +83,14 @@ export interface DadosDaAtividade extends RegrasDeEntrega {
   trilha_id: number;
   titulo: string;
   enunciado: string;
-  /** ISO */
-  prazo: string;
+  link_enunciado: string;
+  /** ISO; null = sem prazo */
+  prazo: string | null;
 }
 
 const COLUNAS_TENTATIVA =
   'id, participante_id, numero, comentario, link, arquivo_caminho, arquivo_nome, arquivo_id, arquivo:arquivos_entrega(nome), enviada_em, status, feedback, nota, avaliada_em, avaliada_por_nome';
-const COLUNAS_ATIVIDADE = `id, turma_id, trilha_id, titulo, enunciado, prazo, exige_texto, exige_link, tipo_link, exige_arquivo, formatos, trilha:trilhas(nome, ordem), tentativas(${COLUNAS_TENTATIVA})`;
+const COLUNAS_ATIVIDADE = `id, turma_id, trilha_id, titulo, enunciado, link_enunciado, prazo, exige_texto, exige_link, tipo_link, exige_arquivo, formatos, trilha:trilhas(nome, ordem), tentativas(${COLUNAS_TENTATIVA})`;
 
 /** Chaves do cache (ver lib/cache.ts) */
 export const CHAVE_ATIVIDADES_ALUNO = 'atividades:aluno';
@@ -103,20 +109,20 @@ export const ROTULO_SITUACAO: Record<Situacao, string> = {
   encerrada: 'Prazo encerrado',
 };
 
-/** O prazo da atividade já passou? */
-const prazoEncerrado = (prazo: string) => new Date(prazo) < new Date();
+/** O prazo da atividade já passou? (sem prazo, nunca) */
+const prazoEncerrado = (prazo: string | null) => prazo !== null && new Date(prazo) < new Date();
 
 /** Tentativas de um aluno numa atividade, da 1ª à última */
 export const tentativasDe = (atividade: Atividade, participanteId: number) =>
   atividade.tentativas.filter((t) => t.participante_id === participanteId);
 
-export function situacaoDoAluno(tentativas: Tentativa[], prazo: string): Situacao {
+export function situacaoDoAluno(tentativas: Tentativa[], prazo: string | null): Situacao {
   const ultima = tentativas[tentativas.length - 1];
   if (!ultima) return prazoEncerrado(prazo) ? 'encerrada' : 'pendente';
   return ultima.status;
 }
 
-/** O aluno ainda pode enviar? (1º envio até o prazo; depois de "Refazer", sempre) */
+/** O aluno ainda pode enviar? (1º envio até o prazo, ou sempre se não houver; depois de "Refazer", sempre) */
 export const podeEnviar = (situacao: Situacao) => situacao === 'pendente' || situacao === 'refazer';
 
 /** Resumo da atividade só com quem está na turma: entregas para corrigir, quem entregou e o prazo */
@@ -133,10 +139,13 @@ export function resumoNaTurma(atividade: Atividade, idsDosAlunos: Set<number>) {
 export const paraCorrigir = (atividades: Atividade[], idsDosAlunos: Set<number>) =>
   atividades.reduce((total, a) => total + resumoNaTurma(a, idsDosAlunos).aguardando, 0);
 
-function arrumar(atividades: Atividade[]): Atividade[] {
+/** Por prazo (as sem prazo no fim); no empate, pela ordem de criação (id) */
+export function arrumar(atividades: Atividade[]): Atividade[] {
+  const porPrazo = (a: Atividade, b: Atividade) =>
+    a.prazo === b.prazo ? 0 : a.prazo === null ? 1 : b.prazo === null ? -1 : a.prazo.localeCompare(b.prazo);
   return atividades
     .map((a) => ({ ...a, tentativas: [...a.tentativas].sort((x, y) => x.numero - y.numero) }))
-    .sort((a, b) => a.prazo.localeCompare(b.prazo));
+    .sort((a, b) => porPrazo(a, b) || a.id - b.id);
 }
 
 export class ServicoAtividades {
@@ -177,7 +186,14 @@ export class ServicoAtividades {
 
   /** Cria (com turma) ou edita (com id). Devolve null se deu certo, ou o texto do erro. */
   async salvar(dados: DadosDaAtividade, alvo: { turmaId: number } | { id: number }): Promise<string | null> {
-    const campos = { ...dados, titulo: dados.titulo.trim(), enunciado: dados.enunciado.trim() };
+    const link = dados.link_enunciado.trim();
+    if (link && !linkValido(link)) return 'O link do enunciado precisa começar com https://';
+    const campos = {
+      ...dados,
+      titulo: dados.titulo.trim(),
+      enunciado: dados.enunciado.trim(),
+      link_enunciado: vazioViraNulo(link),
+    };
     const { error } =
       'id' in alvo
         ? await supabase.from('atividades').update(campos).eq('id', alvo.id)

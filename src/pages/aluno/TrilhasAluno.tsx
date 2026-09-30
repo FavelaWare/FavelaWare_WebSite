@@ -192,7 +192,9 @@ const ListaDeAtividades: React.FC<{
             >
               <span className="min-w-0">
                 <span className={`block ${texto.destaque}`}>{a.titulo}</span>
-                <span className={`block ${texto.apoio}`}>Prazo: {formatarDataHora(a.prazo)}</span>
+                <span className={`block ${texto.apoio}`}>
+                  {a.prazo ? `Prazo: ${formatarDataHora(a.prazo)}` : 'Sem prazo'}
+                </span>
               </span>
               <span className="flex items-center gap-2">
                 {situacao === 'concluida' && ultima?.nota != null && (
