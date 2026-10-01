@@ -76,13 +76,3 @@ export interface Premio {
   imagens: string[];
   icone: string;
 }
-
-/** Forma de contato (página Contato) */
-export interface ContatoInfo {
-  tipo: 'email' | 'telefone' | 'endereco';
-  titulo: string;
-  valor: string;
-  /** mailto:, tel: ou mapa */
-  link?: string;
-  icone: string;
-}

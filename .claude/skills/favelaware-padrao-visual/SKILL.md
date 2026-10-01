@@ -11,14 +11,14 @@ abra o arquivo de referência da tabela abaixo e copie o que já existe.
 
 | Vai fazer                     | Copie de                                                                    |
 | ----------------------------- | --------------------------------------------------------------------------- |
-| Página interna nova           | `src/pages/Contato.tsx` (a mais enxuta)                                     |
+| Página interna nova           | `src/pages/Galeria.tsx` (a mais enxuta)                                     |
 | Página interna com lista      | `src/pages/ComoFazemos.tsx` (os dados moram em `src/data/trilhas.ts`, não no JSX) |
 | Formulário                    | `src/pages/Login.tsx` (form completo com envio)                             |
 | Grade de cards clicáveis      | `src/pages/Turmas.tsx`                                                      |
 | Foto redonda + nome (equipe, alunos) | `src/components/CartaoDePessoa.tsx` (foto padrão, cargo, organização, LinkedIn) |
 | Foto ampliada                 | `src/components/Lightbox.tsx` (Esc, foco preso e devolvido, scroll travado) |
 | Link com animação             | `src/components/MotionLink.tsx` (hover trava se o pai re-renderizar durante ele — ver cabeçalho) |
-| Ícone de marca / rede social  | `src/components/RedesSociais.tsx` (`<LinksRedesSociais fundo="roxo" \| "claro">`) |
+| Ícone de marca / rede social  | `src/components/RedesSociais.tsx` (`<LinksRedesSociais fundo="roxo">`) |
 | E-mail, telefone, endereço, Instagram | `src/data/contato.ts` — **sempre** importados daqui, nunca escritos no JSX |
 | Voltar ao topo ao trocar de rota | `src/components/RolarAoTopo.tsx` (já montado no `App.tsx`)               |
 | Linha do tempo / etapas       | `src/pages/Sobre.tsx` (cronograma)                                          |
@@ -153,8 +153,7 @@ Variante sólida da marca (verde com texto roxo): `classeBotaoDestaque` de
 `bg-white rounded-xl shadow-lg p-8` — ou `rounded-2xl shadow-xl p-8 md:p-12` para o card grande
 de uma seção, sempre com `transition-all duration-300`. Card clicável (é `<motion.a>` ou está
 dentro de `<Link>`) ganha borda `border-2 border-transparent hover:border-favela-green-500` e
-`whileHover={{ scale: 1.05, y: -5 }}`; card só informativo fica sem hover. Os cards de
-`Contato.tsx` ainda têm hover sem serem clicáveis — não copie esse trecho.
+`whileHover={{ scale: 1.05, y: -5 }}`; card só informativo fica sem hover.
 
 ## Movimento (Framer Motion)
 

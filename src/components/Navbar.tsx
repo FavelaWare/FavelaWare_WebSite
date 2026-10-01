@@ -63,7 +63,6 @@ const Navbar = () => {
     { name: 'TURMAS', href: '/turmas', type: 'route' },
     { name: 'GALERIA', href: '/galeria', type: 'route' },
     { name: 'RECONHECIMENTOS', href: '/reconhecimentos', type: 'route' },
-    { name: 'CONTATO', href: '/contato', type: 'route' },
   ];
 
   return (

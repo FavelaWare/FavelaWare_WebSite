@@ -40,7 +40,6 @@ const ComoFazemos = lazy(() => import('./pages/ComoFazemos')); // Trilhas de ens
 const Sobre = lazy(() => import('./pages/Sobre')); // Sobre o projeto
 const HallDaFama = lazy(() => import('./pages/HallDaFama')); // Equipes anteriores
 const Reconhecimentos = lazy(() => import('./pages/Reconhecimentos')); // Prêmios
-const Contato = lazy(() => import('./pages/Contato')); // Contato
 const Login = lazy(() => import('./pages/Login')); // Login (traz o Supabase)
 const Turmas = lazy(() => import('./pages/Turmas')); // Lista de turmas
 const TurmaDetalhe = lazy(() => import('./pages/TurmaDetalhe')); // Alunos de uma turma (/turmas/:slug)
@@ -101,7 +100,6 @@ const preCarregarSitePublico = () => {
     () => import('./pages/Sobre'),
     () => import('./pages/HallDaFama'),
     () => import('./pages/Reconhecimentos'),
-    () => import('./pages/Contato'),
     () => import('./pages/Turmas'),
     () => import('./pages/TurmaDetalhe'),
     () => import('./pages/Galeria'),
@@ -163,8 +161,9 @@ const App: React.FC = () => {
               {/* Rota da página Reconhecimentos (/reconhecimentos) */}
               <Route path="/reconhecimentos" element={<Reconhecimentos />} />
 
-              {/* Rota da página Contato (/contato) */}
-              <Route path="/contato" element={<Contato />} />
+              {/* Contato saiu do site: os dados ficam no rodapé. O 301 de verdade
+                  (para o Google) está no public/.htaccess; aqui é para o npm run dev */}
+              <Route path="/contato" element={<Navigate to="/" replace />} />
 
               {/* Rota da página Login (/login) - tela sem navbar e sem rodapé */}
               <Route path="/login" element={<Login />} />
