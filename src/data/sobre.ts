@@ -45,8 +45,7 @@ export const idealizadores = [
 export const propositos = [
   {
     titulo: 'Acadêmico',
-    descricao:
-      'Proporcionar aos alunos de TI da Una Cristiano Machado compartilhar as habilidades adquiridas nos cursos.',
+    descricao: 'Proporcionar aos alunos de TI da UNA Centerminas compartilhar as habilidades adquiridas nos cursos.',
     cor: 'text-pink-500',
   },
   {
