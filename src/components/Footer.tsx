@@ -18,8 +18,8 @@ import { memo } from 'react';
 // Importa ferramentas de animação
 import { motion } from 'framer-motion';
 
-// E-mail oficial (fonte única em src/data/contato.ts)
-import { email } from '../data/contato';
+// E-mail, telefone e endereço oficiais (fonte única em src/data/contato.ts)
+import { email, endereco, telefoneExibicao, telefoneLink } from '../data/contato';
 
 // Link do React Router que aceita animações do Framer Motion
 import { MotionLink } from './MotionLink';
@@ -32,8 +32,10 @@ const linksRapidos = [
   { nome: 'Sobre', rota: '/sobre' },
   { nome: 'Como fazemos', rota: '/como-fazemos' },
   { nome: 'Galeria', rota: '/galeria' },
-  { nome: 'Contato', rota: '/contato' },
 ];
+
+// Busca do endereço no Google Maps (abre o app/site do Maps em nova aba)
+const linkDoMapa = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(endereco)}`;
 
 // Anel de foco para quem navega pelo teclado (Tab)
 const anelDeFoco = 'focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8bc53f] rounded';
@@ -141,12 +143,31 @@ const Footer = () => {
             </h4>
             <div className="space-y-3 text-white/80 text-sm">
               {/* Cards só informativos: sem efeito de hover, para não parecerem
-                  clicáveis. Quem reage ao mouse é o link do e-mail. */}
+                  clicáveis. Quem reage ao mouse são os links (mapa, telefone, e-mail). */}
               <div className="flex items-start gap-3 p-3">
                 <span className="text-xl">📍</span>
                 <div>
-                  <p className="font-semibold text-white">Localização</p>
-                  <p>Belo Horizonte/MG</p>
+                  <p className="font-semibold text-white">Endereço</p>
+                  <p>Obras Pavonianas</p>
+                  <a
+                    href={linkDoMapa}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={`${endereco} (abre o mapa em nova aba)`}
+                    className={`hover:text-favela-green-400 transition-colors ${anelDeFoco}`}
+                  >
+                    {endereco}
+                  </a>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3 p-3">
+                <span className="text-xl">📞</span>
+                <div>
+                  <p className="font-semibold text-white">Telefone</p>
+                  <a href={telefoneLink} className={`hover:text-favela-green-400 transition-colors ${anelDeFoco}`}>
+                    {telefoneExibicao}
+                  </a>
                 </div>
               </div>
 

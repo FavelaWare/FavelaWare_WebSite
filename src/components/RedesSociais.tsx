@@ -4,7 +4,7 @@
  * ============================================
  *
  * Botões redondos com os canais oficiais do FavelaWare (Instagram e e-mail).
- * Usado no rodapé (fundo roxo) e na página de Contato (fundo claro).
+ * Usado no rodapé (fundo roxo); a variante de fundo claro serve a páginas de fundo branco.
  *
  * Os ícones são SVG escritos direto no JSX: nenhuma biblioteca extra e
  * nenhum HTML injetado.

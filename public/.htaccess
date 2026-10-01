@@ -7,6 +7,8 @@
   RewriteEngine On
   RewriteBase /
   RewriteRule ^index\.html$ - [L]
+  # A página Contato saiu (os dados estão no rodapé): 301 para a Home
+  RewriteRule ^contato/?$ / [R=301,L]
   RewriteCond %{REQUEST_FILENAME} !-f
   RewriteCond %{REQUEST_FILENAME} !-d
   RewriteRule . /index.html [L]
