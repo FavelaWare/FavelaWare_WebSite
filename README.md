@@ -252,4 +252,4 @@ Branch a partir de `develop`, PR para `develop` com título em Conventional Comm
 Release por `release/vX.Y.Z` com PR para `main`. Regras de código em
 [`docs/boas-praticas.md`](docs/boas-praticas.md).
 
-Contato: contato@favelaware.com · Belo Horizonte/MG
+Contato: favelaware@gmail.com · Belo Horizonte/MG

@@ -18,7 +18,7 @@ abra o arquivo de referência da tabela abaixo e copie o que já existe.
 | Foto redonda + nome (equipe, alunos) | `src/components/CartaoDePessoa.tsx` (foto padrão, cargo, organização, LinkedIn) |
 | Foto ampliada                 | `src/components/Lightbox.tsx` (Esc, foco preso e devolvido, scroll travado) |
 | Link com animação             | `src/components/MotionLink.tsx` (hover trava se o pai re-renderizar durante ele — ver cabeçalho) |
-| Ícone de marca / rede social  | `src/components/RedesSociais.tsx` (`<LinksRedesSociais fundo="roxo" \| "claro">`) |
+| Ícone de marca / rede social  | `src/components/RedesSociais.tsx` (`<LinksRedesSociais fundo="roxo">`) |
 | E-mail, telefone, endereço, Instagram | `src/data/contato.ts` — **sempre** importados daqui, nunca escritos no JSX |
 | Voltar ao topo ao trocar de rota | `src/components/RolarAoTopo.tsx` (já montado no `App.tsx`)               |
 | Linha do tempo / etapas       | `src/pages/Sobre.tsx` (cronograma)                                          |

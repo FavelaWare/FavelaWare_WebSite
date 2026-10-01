@@ -145,7 +145,9 @@ const Footer = () => {
               {/* Cards só informativos: sem efeito de hover, para não parecerem
                   clicáveis. Quem reage ao mouse são os links (mapa, telefone, e-mail). */}
               <div className="flex items-start gap-3 p-3">
-                <span className="text-xl">📍</span>
+                <span className="text-xl" aria-hidden="true">
+                  📍
+                </span>
                 <div>
                   <p className="font-semibold text-white">Endereço</p>
                   <p>Obras Pavonianas</p>
@@ -162,7 +164,9 @@ const Footer = () => {
               </div>
 
               <div className="flex items-start gap-3 p-3">
-                <span className="text-xl">📞</span>
+                <span className="text-xl" aria-hidden="true">
+                  📞
+                </span>
                 <div>
                   <p className="font-semibold text-white">Telefone</p>
                   <a href={telefoneLink} className={`hover:text-favela-green-400 transition-colors ${anelDeFoco}`}>
@@ -172,7 +176,9 @@ const Footer = () => {
               </div>
 
               <div className="flex items-start gap-3 p-3">
-                <span className="text-xl">✉️</span>
+                <span className="text-xl" aria-hidden="true">
+                  ✉️
+                </span>
                 <div>
                   <p className="font-semibold text-white">Email</p>
                   <a href={`mailto:${email}`} className={`hover:text-favela-green-400 transition-colors ${anelDeFoco}`}>

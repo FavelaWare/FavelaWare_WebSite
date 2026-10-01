@@ -4,7 +4,7 @@
  * ============================================
  *
  * Botões redondos com os canais oficiais do FavelaWare (Instagram e e-mail).
- * Usado no rodapé (fundo roxo); a variante de fundo claro serve a páginas de fundo branco.
+ * Usado no rodapé (fundo roxo).
  *
  * Os ícones são SVG escritos direto no JSX: nenhuma biblioteca extra e
  * nenhum HTML injetado.
@@ -93,14 +93,13 @@ export const LinkLinkedin: React.FC<{ nome: string; url: string }> = ({ nome, ur
   </a>
 );
 
-// Cores de cada variação. O ring-offset usa a cor do fundo para o anel de
+// Cores por fundo. O ring-offset usa a cor do fundo para o anel de
 // foco ficar "descolado" do botão sem aparecer uma borda branca.
 const estilosPorFundo = {
   roxo: 'bg-white/10 text-white hover:bg-[#8bc53f] hover:text-[#2d2a5f] focus-visible:ring-offset-[#2d2a5f]',
-  claro: 'bg-[#2d2a5f] text-white hover:bg-[#8bc53f] hover:text-[#2d2a5f] focus-visible:ring-offset-white',
 };
 
-export const LinksRedesSociais: React.FC<{ fundo: 'roxo' | 'claro' }> = ({ fundo }) => {
+export const LinksRedesSociais: React.FC<{ fundo: 'roxo' }> = ({ fundo }) => {
   return (
     <div className="flex gap-4">
       {redesSociais.map((rede) => (
