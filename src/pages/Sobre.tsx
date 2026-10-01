@@ -77,7 +77,7 @@ const Sobre = () => {
               O <span className="font-bold text-pink-500">FavelaWare</span> é uma iniciativa da{' '}
               <span className="font-bold text-[#8bc53f]">Mundiale</span>, do{' '}
               <span className="font-bold text-pink-500">Ecossistema Ânima Educação</span> através da{' '}
-              <span className="font-bold text-[#8bc53f]">UNA Cristiano Machado</span> e das{' '}
+              <span className="font-bold text-[#8bc53f]">UNA Centerminas</span> e das{' '}
               <span className="font-bold text-pink-500">Obras Pavonianas</span> com a{' '}
               <span className="font-bold text-[#8bc53f]">Rede Transformar</span>.
             </p>

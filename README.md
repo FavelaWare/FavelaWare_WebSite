@@ -44,7 +44,7 @@ flowchart LR
 
 O FavelaWare forma jovens de 15 a 24 anos vindos de comunidades de Belo Horizonte/MG em lógica,
 low code, back end e front end, com desenvolvimento pessoal e trabalho em equipe. Iniciativa da
-Mundiale, do Ecossistema Ânima Educação (UNA Cristiano Machado) e das Obras Pavonianas com a Rede
+Mundiale, do Ecossistema Ânima Educação (UNA Centerminas) e das Obras Pavonianas com a Rede
 Transformar.
 
 Um repositório, duas superfícies: o **site público**, que conta a história das edições, e o

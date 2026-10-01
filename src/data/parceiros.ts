@@ -30,11 +30,11 @@ export const parceiros: Parceiro[] = [
     site: 'https://animaeducacao.com.br',
   },
   {
-    nome: 'UNA Cristiano Machado',
+    nome: 'UNA Centerminas',
     emoji: '🎓',
-    imagem: '/imgs/partners/Una Cristiano Machado.webp',
+    imagem: '/imgs/partners/una-centerminas.webp',
     descricao:
-      'A Una Cristiano Machado é uma das instituições da Ânima com compromisso de oferecer educação de qualidade, focada na formação acadêmica sólida e inovadora.',
+      'A UNA Centerminas é uma das instituições da Ânima com compromisso de oferecer educação de qualidade, focada na formação acadêmica sólida e inovadora.',
     site: 'https://una.br',
   },
   {
