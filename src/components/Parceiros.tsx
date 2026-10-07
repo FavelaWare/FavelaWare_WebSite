@@ -82,7 +82,7 @@ const Parceiros: React.FC = () => {
             viewport={{ once: true }}
             transition={{ duration: 0.5 }}
           >
-            <span className="text-gradient from-favela-green-500 via-favela-blue-500 to-favela-green-500">
+            <span className="text-3xl sm:text-4xl md:text-4xl lg:text-5xl font-bold text-center tracking-wider text-gradient from-favela-green-500 via-favela-blue-500 to-favela-green-500">
               IDEALIZADORES
             </span>
           </motion.h2>
