@@ -151,7 +151,8 @@ const CartaoDaTrilhaDaEquipe: React.FC<PropsCartao> = ({
                         Entregas
                       </Botao>
                     )}
-                    {emGrupo(a) && a.grupos_montados_por === 'professor' && (
+                    {/* Montar grupos pede a lista de alunos, que só quem vê as entregas tem */}
+                    {mostrarEntregas && emGrupo(a) && a.grupos_montados_por === 'professor' && (
                       <Botao tamanho="pequeno" onClick={() => aoAbrir({ tipo: 'grupos', atividadeId: a.id })}>
                         Montar grupos
                       </Botao>

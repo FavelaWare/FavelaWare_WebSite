@@ -119,7 +119,8 @@ const TrilhasEquipe: React.FC = () => {
       console.error('[trilhas] salvou, mas falhou ao atualizar', e);
     }
     setMensagem({ tipo: 'sucesso', texto });
-    setJanela(proxima);
+    // Só abre a próxima se houver: não fecha uma janela aberta durante o recarregamento
+    if (proxima) setJanela(proxima);
   };
 
   const apagar = async (alvo: AlvoDeApagar) => {
@@ -276,7 +277,9 @@ const TrilhasEquipe: React.FC = () => {
               recarregar(
                 'atividades',
                 texto,
-                montarGruposDe === undefined ? null : { tipo: 'grupos', atividadeId: montarGruposDe },
+                montarGruposDe === undefined || !mostrarEntregas
+                  ? null
+                  : { tipo: 'grupos', atividadeId: montarGruposDe },
               )
             }
           />
@@ -292,7 +295,12 @@ const TrilhasEquipe: React.FC = () => {
         focoInicial="fechar"
       >
         {janela?.tipo === 'grupos' && atividadeDaJanela && (
-          <GruposDaAtividade key={atividadeDaJanela.id} atividade={atividadeDaJanela} alunos={turma.alunos} />
+          <GruposDaAtividade
+            key={atividadeDaJanela.id}
+            atividade={atividadeDaJanela}
+            alunos={turma.alunos}
+            aoSalvo={daTurma.recarregar}
+          />
         )}
       </Janela>
 

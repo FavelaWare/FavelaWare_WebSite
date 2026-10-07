@@ -9,6 +9,7 @@ import type { QuemEntregou } from './tipos';
 import {
   emGrupo,
   linhasDeEntrega,
+  nomeDeQuemEnviou,
   situacaoDoAluno,
   tentativasDe,
   type AlunoDaTurma,
@@ -92,7 +93,6 @@ const EntregasDosGrupos: React.FC<{
   aoCorrigir: (quem: QuemEntregou) => void;
 }> = ({ atividade, alunos, aoCorrigir }) => {
   const { grupos, semGrupo } = linhasDeEntrega(atividade, alunos);
-  const nomeDe = (id: number) => alunos.find((a) => a.id === id)?.nome ?? 'ex-integrante';
 
   return (
     <>
@@ -113,7 +113,7 @@ const EntregasDosGrupos: React.FC<{
                     Grupo {indice + 1}: {g.integrantes.map((a) => a.nome).join(', ')}
                   </span>
                   {ultima && (
-                    <span className={`block ${texto.apoio}`}>Enviado por {nomeDe(ultima.participante_id)}</span>
+                    <span className={`block ${texto.apoio}`}>Enviado por {nomeDeQuemEnviou(ultima, alunos)}</span>
                   )}
                 </span>
                 <SituacaoDaEntrega

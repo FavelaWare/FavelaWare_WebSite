@@ -10,10 +10,10 @@
  * - quem entra passa a ver a entrega, o feedback e a nota como dele.
  * Quem pode ajustar e os limites (máximo do grupo, último integrante) o banco confere.
  */
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { Aviso, Botao, classeCampo, classeRotulo, type Mensagem } from '../admin/Ui';
-import { estado, texto } from '../admin/designSystem';
+import { estado, foco, texto } from '../admin/designSystem';
 import { linhasDeEntrega, type AlunoDaTurma, type Atividade } from '../../lib/atividades';
 import { servicoGrupos } from '../../lib/grupos';
 
@@ -32,6 +32,20 @@ const AjustarGrupo: React.FC<{
   const [confirmando, setConfirmando] = useState<Mudanca | null>(null);
   const [salvando, setSalvando] = useState(false);
   const [mensagem, setMensagem] = useState<Mensagem>(null);
+  const pergunta = useRef<HTMLDivElement>(null);
+  const titulo = useRef<HTMLHeadingElement>(null);
+  const jaPerguntou = useRef(false);
+
+  // A pergunta recebe o foco ao aparecer (o leitor de tela anuncia); ao sumir, o foco
+  // volta para o título da seção, porque o botão que a abriu pode ter sumido junto
+  useEffect(() => {
+    if (confirmando) {
+      jaPerguntou.current = true;
+      pergunta.current?.focus();
+    } else if (jaPerguntou.current) {
+      titulo.current?.focus();
+    }
+  }, [confirmando]);
 
   if (!grupo) return null;
   const cheio = grupo.integrantes.length >= atividade.grupo_max;
@@ -68,7 +82,7 @@ const AjustarGrupo: React.FC<{
   return (
     <section aria-labelledby="titulo-ajustar-grupo" className="space-y-3 border-t border-gray-100 pt-5">
       <div>
-        <h3 id="titulo-ajustar-grupo" className={texto.titulo}>
+        <h3 id="titulo-ajustar-grupo" ref={titulo} tabIndex={-1} className={`rounded ${texto.titulo} ${foco}`}>
           Integrantes do grupo
         </h3>
         <p className={texto.apoio}>Para corrigir quem foi marcado por engano ou incluir quem entrou depois.</p>
@@ -125,7 +139,13 @@ const AjustarGrupo: React.FC<{
       )}
 
       {confirmando && (
-        <div role="alertdialog" aria-labelledby="pergunta-ajuste" className={`rounded-lg border p-4 ${estado.atencao}`}>
+        <div
+          ref={pergunta}
+          tabIndex={-1}
+          role="alertdialog"
+          aria-labelledby="pergunta-ajuste"
+          className={`rounded-lg border p-4 ${estado.atencao} ${foco}`}
+        >
           <p id="pergunta-ajuste" className="text-sm font-semibold">
             {confirmando.tipo === 'tirar'
               ? `Tirar ${confirmando.aluno.nome} do grupo?`

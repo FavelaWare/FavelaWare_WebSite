@@ -31,6 +31,7 @@ import { estado, foco, selo, texto } from '../admin/designSystem';
 import HistoricoDeTentativas from './HistoricoDeTentativas';
 import {
   emGrupo,
+  nomeDeQuemEnviou,
   podeEnviar,
   ROTULO_SITUACAO,
   rotuloDoFormato,
@@ -40,7 +41,6 @@ import {
   type Atividade,
   type GrupoDoAluno,
   type Situacao,
-  type Tentativa,
 } from '../../lib/atividades';
 import { problemaNoTamanho, servicoGrupos, tamanhoDoGrupo } from '../../lib/grupos';
 import { codigoDoErro } from '../../lib/banco';
@@ -204,9 +204,15 @@ const JanelaDaAtividade: React.FC<PropsJanela> = ({
     );
     if (resultado.status !== StatusProcessamento.Sucesso) {
       setEtapa(null);
-      // Um colega pode ter entrado em outro grupo nesse meio tempo: a lista se atualiza
-      if (escolheColegas) void carregarColegas();
-      return setMensagem({ tipo: 'erro', texto: resultado.mensagem! });
+      setMensagem({ tipo: 'erro', texto: resultado.mensagem! });
+      if (escolheColegas) {
+        // Um colega pode ter entrado em outro grupo nesse meio tempo, ou outro aluno pode
+        // ter enviado já com este no grupo: atualiza a lista e as atividades (aí a janela
+        // passa a mostrar o grupo e a entrega dele)
+        void carregarColegas();
+        aoEnviar().catch((falha) => console.error('[atividades] falha ao atualizar depois da recusa', falha));
+      }
+      return;
     }
     try {
       await aoEnviar(); // a janela passa a mostrar o envio no histórico
@@ -367,7 +373,7 @@ const JanelaDaAtividade: React.FC<PropsJanela> = ({
             </h3>
             <HistoricoDeTentativas
               tentativas={tentativas}
-              nomeDoAluno={ehGrupo ? (t) => quemEnviou(t, participanteId, meuGrupo) : 'Você'}
+              nomeDoAluno={ehGrupo ? (t) => nomeDeQuemEnviou(t, meuGrupo?.integrantes ?? [], participanteId) : 'Você'}
             />
           </section>
         )}
@@ -588,12 +594,6 @@ const CampoDeArquivo: React.FC<{
   );
 };
 
-/** Nome de quem enviou a tentativa do grupo ("Você", um colega, ou quem já saiu do grupo) */
-function quemEnviou(t: Tentativa, participanteId: number, grupo: GrupoDoAluno | undefined): string {
-  if (t.participante_id === participanteId) return 'Você';
-  return grupo?.integrantes.find((i) => i.id === t.participante_id)?.nome ?? 'Ex-integrante do grupo';
-}
-
 // ============================================
 // COLEGAS DO GRUPO (1º envio, quando os alunos montam)
 // ============================================
@@ -627,7 +627,9 @@ const EscolherColegas: React.FC<{
         <p className={`mt-2 ${texto.corpo}`}>Carregando os colegas…</p>
       ) : colegas === null ? (
         <div className="mt-2 flex flex-wrap items-center gap-3">
-          <p className="text-sm text-red-700">Não foi possível carregar os colegas.</p>
+          <p role="alert" className="text-sm text-red-700">
+            Não foi possível carregar os colegas.
+          </p>
           <Botao tamanho="pequeno" onClick={aoTentarDeNovo}>
             Tentar de novo
           </Botao>

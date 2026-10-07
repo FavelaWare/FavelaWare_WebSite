@@ -20,6 +20,7 @@ import {
   emGrupo,
   FORMATO_INDIVIDUAL,
   MAXIMO_POR_GRUPO,
+  nomeDeQuemEnviou,
   servicoAtividades,
   tentativasDe,
   tentativasDoGrupo,
@@ -86,7 +87,8 @@ const Opcao: React.FC<{
       className="sr-only"
     />
     <span className={`block ${texto.destaque}`}>
-      {marcada ? '✓ ' : ''}
+      {/* O rádio já diz "marcado" ao leitor de tela: o ✓ é só visual */}
+      {marcada && <span aria-hidden="true">✓ </span>}
       {rotulo}
     </span>
     <span className={`block ${texto.apoio}`}>{apoio}</span>
@@ -266,6 +268,8 @@ export const FormularioDeAtividade: React.FC<{
   });
   const [salvando, setSalvando] = useState(false);
   const [mensagem, setMensagem] = useState<Mensagem>(null);
+  // Atividade antiga, escrita no portal: o texto dela continua valendo, e o link é opcional
+  const linkOpcional = Boolean(atividade?.enunciado);
 
   // Atividade nova começa na primeira trilha
   useEffect(() => {
@@ -349,7 +353,7 @@ export const FormularioDeAtividade: React.FC<{
               </label>
               <input
                 id="atividade-link-enunciado"
-                required
+                required={!linkOpcional}
                 type="url"
                 inputMode="url"
                 maxLength={2000}
@@ -361,7 +365,9 @@ export const FormularioDeAtividade: React.FC<{
                 onChange={(e) => setCampos((c) => ({ ...c, linkEnunciado: e.target.value }))}
               />
               <p id="atividade-link-enunciado-apoio" className={`mt-1 ${texto.apoio}`}>
-                O aluno lê a atividade nesta página do GitBook e entrega aqui no portal.
+                {linkOpcional
+                  ? 'Opcional nesta atividade: ela já tem o enunciado escrito no portal.'
+                  : 'O aluno lê a atividade nesta página do GitBook e entrega aqui no portal.'}
               </p>
             </div>
           </div>
@@ -552,9 +558,7 @@ export const Corrigir: React.FC<{
 }> = ({ atividade, quem, alunos, aoSalvar }) => {
   const doGrupo = 'grupoId' in quem;
   const tentativas = doGrupo ? tentativasDoGrupo(atividade, quem.grupoId) : tentativasDe(atividade, quem.aluno.id);
-  const nomeDoAluno = doGrupo
-    ? (t: Tentativa) => alunos.find((a) => a.id === t.participante_id)?.nome ?? 'Ex-integrante do grupo'
-    : quem.aluno.nome;
+  const nomeDoAluno = doGrupo ? (t: Tentativa) => nomeDeQuemEnviou(t, alunos) : quem.aluno.nome;
   const ultima = tentativas[tentativas.length - 1];
   const [feedback, setFeedback] = useState(ultima?.status !== 'aguardando' ? (ultima?.feedback ?? '') : '');
   const [nota, setNota] = useState(ultima?.nota != null ? String(ultima.nota) : '');

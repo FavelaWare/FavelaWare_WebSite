@@ -251,6 +251,15 @@ export function linhasDeEntrega(atividade: Atividade, alunos: AlunoDaTurma[]) {
   return { grupos, semGrupo: alunos.filter((a) => !comGrupo.has(a.id)) };
 }
 
+/**
+ * Quem enviou uma tentativa do grupo: "Você" (na tela do aluno), o nome do integrante,
+ * ou "Ex-integrante do grupo" para quem saiu do grupo ou da turma depois de enviar.
+ */
+export function nomeDeQuemEnviou(t: Tentativa, integrantes: AlunoDaTurma[], euId?: number): string {
+  if (t.participante_id === euId) return 'Você';
+  return integrantes.find((a) => a.id === t.participante_id)?.nome ?? 'Ex-integrante do grupo';
+}
+
 /** Linha de integrantes_dos_meus_grupos (uma por integrante) */
 export interface IntegranteDoMeuGrupo {
   atividade_id: number;
@@ -336,8 +345,10 @@ export class ServicoAtividades {
     alvo: { turmaId: number } | { id: number },
   ): Promise<{ id: number } | { falha: string }> {
     const link = dados.link_enunciado.trim();
-    if (!link) return { falha: 'Informe o link do enunciado no GitBook.' };
-    if (!linkValido(link)) return { falha: 'O link do enunciado precisa começar com https://' };
+    // Atividade nova precisa do link. Na edição de uma antiga, escrita no portal, o texto
+    // dela basta (o banco confere que há pelo menos um dos dois)
+    if (!link && !('id' in alvo)) return { falha: 'Informe o link do enunciado no GitBook.' };
+    if (link && !linkValido(link)) return { falha: 'O link do enunciado precisa começar com https://' };
     const { grupo_min: minimo, grupo_max: maximo } = dados;
     if (!Number.isInteger(minimo) || !Number.isInteger(maximo) || minimo < 1 || maximo < minimo) {
       return {
@@ -348,7 +359,7 @@ export class ServicoAtividades {
     const campos = {
       ...dados,
       titulo: dados.titulo.trim(),
-      link_enunciado: link,
+      link_enunciado: link || null,
     };
     const { data, error } =
       'id' in alvo

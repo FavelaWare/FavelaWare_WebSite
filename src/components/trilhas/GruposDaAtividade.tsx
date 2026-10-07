@@ -11,7 +11,23 @@ import type { AlunoDaTurma, Atividade } from '../../lib/atividades';
 import { codigoDoErro } from '../../lib/banco';
 import { servicoGrupos, type GrupoEmEdicao } from '../../lib/grupos';
 
-const GruposDaAtividade: React.FC<{ atividade: Atividade; alunos: AlunoDaTurma[] }> = ({ atividade, alunos }) => {
+const GruposDaAtividade: React.FC<{
+  atividade: Atividade;
+  alunos: AlunoDaTurma[];
+  /** Depois de gravar: a página recarrega as atividades (entregas e contadores usam os grupos) */
+  aoSalvo: () => Promise<void>;
+}> = ({ atividade, alunos, aoSalvo }) => {
+  const salvar = async (distribuicao: number[][]) => {
+    const falha = await servicoGrupos.definir(atividade.id, distribuicao);
+    if (falha) return falha;
+    try {
+      await aoSalvo();
+    } catch (e) {
+      // Os grupos foram gravados: só a lista da página ficou para trás
+      console.error('[grupos] salvou, mas falhou ao atualizar as atividades', codigoDoErro(e));
+    }
+    return null;
+  };
   // undefined = carregando; null = falhou
   const [grupos, setGrupos] = useState<GrupoEmEdicao[] | null | undefined>(undefined);
 
@@ -44,7 +60,7 @@ const GruposDaAtividade: React.FC<{ atividade: Atividade; alunos: AlunoDaTurma[]
       minimo={atividade.grupo_min}
       maximo={atividade.grupo_max}
       gruposIniciais={grupos}
-      aoSalvar={(distribuicao) => servicoGrupos.definir(atividade.id, distribuicao)}
+      aoSalvar={salvar}
     />
   );
 };

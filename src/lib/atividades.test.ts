@@ -244,10 +244,18 @@ describe('atividade: conferência antes de gravar', () => {
     expect(await salvar('https://com espaço')).toEqual(aviso);
   });
 
-  it('exige o link do enunciado', async () => {
+  it('exige o link do enunciado na atividade nova', async () => {
     const aviso = { falha: 'Informe o link do enunciado no GitBook.' };
     expect(await salvar('')).toEqual(aviso);
     expect(await salvar('   ')).toEqual(aviso);
+  });
+
+  it('edita atividade antiga sem link (o texto dela vale; o banco confere)', async () => {
+    const editar = servicoAtividades.salvar(
+      { trilha_id: 1, titulo: 'A', link_enunciado: '', prazo: null, ...SEM_REGRAS, ...FORMATO_INDIVIDUAL },
+      { id: 1 },
+    );
+    await expect(editar).rejects.toThrow('Teste não deveria chegar ao banco');
   });
 
   it('aceita link https, sem prazo (chega ao banco, que o falso recusa)', async () => {
