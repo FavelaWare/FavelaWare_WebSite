@@ -9,7 +9,10 @@ export type JanelaAberta =
   | { tipo: 'atividade'; trilhaId: number; atividade: Atividade | null }
   | { tipo: 'entregas'; atividadeId: number }
   | { tipo: 'grupos'; atividadeId: number }
-  | { tipo: 'corrigir'; atividadeId: number; aluno: AlunoDaTurma };
+  | { tipo: 'corrigir'; atividadeId: number; quem: QuemEntregou };
+
+/** De quem é a entrega corrigida: de um aluno (individual) ou de um grupo */
+export type QuemEntregou = { aluno: AlunoDaTurma } | { grupoId: number };
 
 /** Situação da aba Atividades (turmas e atividades carregam à parte dos materiais) */
 export type EstadoAtividades = 'carregando' | 'pronto' | 'erro' | 'erro-turmas' | 'sem-turma';

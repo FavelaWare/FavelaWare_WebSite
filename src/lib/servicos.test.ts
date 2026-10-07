@@ -3,7 +3,8 @@ import { describe, expect, it, vi } from 'vitest';
 vi.mock('./supabase', () => import('../testes/supabaseFalso'));
 
 import { contarPessoas } from '../data/hallDaFama';
-import { consultaFalha, removerDoStorage } from '../testes/supabaseFalso';
+import { chamarFuncao, consultaFalha, removerDoStorage } from '../testes/supabaseFalso';
+import { StatusProcessamento } from '../types';
 import { servicoAtestados } from './atestados';
 import { notasCompletas, servicoAvaliacoes, somaDasNotas } from './avaliacoes';
 import { servicoEdicoes } from './edicoes';
@@ -190,6 +191,43 @@ describe('entregas: conferência antes de enviar', () => {
         soPdf,
       ),
     ).toBe('O arquivo passa de 10 MB.');
+  });
+});
+
+describe('entregas: 1º envio em grupo montado pelos alunos', () => {
+  const entrega = { comentario: ' Feito ', link: '', arquivo: null };
+
+  it('forma o grupo e envia numa chamada só, com os colegas escolhidos', async () => {
+    chamarFuncao.mockResolvedValueOnce({ data: 55, error: null });
+    const resultado = await servicoEntregas.enviar(1, 10, entrega, () => {}, SEM_REGRAS, [11, 12]);
+    expect(resultado.status).toBe(StatusProcessamento.Sucesso);
+    expect(chamarFuncao).toHaveBeenLastCalledWith('enviar_em_grupo', {
+      p_atividade: 1,
+      p_colegas: [11, 12],
+      p_comentario: 'Feito',
+      p_link: null,
+      p_arquivo_id: null,
+    });
+  });
+
+  it('mostra ao aluno a recusa do banco (colega que já está em grupo)', async () => {
+    chamarFuncao.mockResolvedValueOnce({
+      data: null,
+      error: { code: '22023', message: 'Um dos colegas já está em um grupo nesta atividade' },
+    });
+    const resultado = await servicoEntregas.enviar(1, 10, entrega, () => {}, SEM_REGRAS, [11]);
+    expect(resultado).toMatchObject({
+      status: StatusProcessamento.ExcecaoNegocio,
+      mensagem: 'Um dos colegas já está em um grupo nesta atividade',
+    });
+  });
+
+  it('sem colegas, segue o envio de sempre (não forma grupo)', async () => {
+    chamarFuncao.mockClear();
+    await expect(servicoEntregas.enviar(1, 10, entrega, () => {}, SEM_REGRAS)).rejects.toThrow(
+      'Teste não deveria chegar ao banco',
+    );
+    expect(chamarFuncao).not.toHaveBeenCalled();
   });
 });
 

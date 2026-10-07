@@ -8,6 +8,8 @@
  * - O aluno entrega com link, texto e/ou arquivo (ver lib/entregas.ts).
  * - O professor responde com feedback, nota (0 a 100) e "Concluída" ou "Refazer";
  *   no "Refazer" o aluno envia de novo (2ª tentativa...).
+ * - Em grupo, a entrega é uma só, do grupo: qualquer integrante envia, a equipe corrige
+ *   uma vez e todos leem (migration 20261001128000_atividades_em_grupo.sql).
  *
  * As regras (quem vê, quem envia, prazo, numeração, quem avaliou) ficam no banco:
  * migration 20260925110000_atividades.sql. Aqui só se lê, grava e resume.
@@ -23,7 +25,10 @@ export type StatusTentativa = 'aguardando' | 'concluida' | 'refazer';
 
 export interface Tentativa {
   id: number;
+  /** Quem enviou (em grupo, um dos integrantes) */
   participante_id: number;
+  /** Grupo da entrega; null na atividade individual */
+  grupo_id: number | null;
   numero: number;
   comentario: string | null;
   link: string | null;
@@ -78,6 +83,20 @@ export interface Atividade extends RegrasDeEntrega, FormatoDaAtividade {
   prazo: string | null;
   trilha: { nome: string; ordem: number } | null;
   tentativas: Tentativa[];
+  /** Grupos da atividade, com os ids dos integrantes (só na tela da equipe) */
+  grupos?: GrupoDaAtividade[];
+}
+
+export interface GrupoDaAtividade {
+  id: number;
+  integrantes: number[];
+}
+
+/** O grupo do aluno logado numa atividade, com o nome de cada integrante (ele incluído) */
+export interface GrupoDoAluno {
+  atividade_id: number;
+  grupo_id: number;
+  integrantes: AlunoDaTurma[];
 }
 
 export interface AlunoDaTurma {
@@ -102,6 +121,8 @@ export interface AtividadesDoAluno {
   visualizacao: boolean;
   turmas: TurmaComEdicao[];
   atividades: Atividade[];
+  /** Grupos do aluno nas atividades em grupo (vazio na visualização) */
+  grupos: GrupoDoAluno[];
 }
 
 export interface DadosDaAtividade extends RegrasDeEntrega, FormatoDaAtividade {
@@ -113,8 +134,14 @@ export interface DadosDaAtividade extends RegrasDeEntrega, FormatoDaAtividade {
 }
 
 const COLUNAS_TENTATIVA =
-  'id, participante_id, numero, comentario, link, arquivo_caminho, arquivo_nome, arquivo_id, arquivo:arquivos_entrega(nome), enviada_em, status, feedback, nota, avaliada_em, avaliada_por_nome';
+  'id, participante_id, grupo_id, numero, comentario, link, arquivo_caminho, arquivo_nome, arquivo_id, arquivo:arquivos_entrega(nome), enviada_em, status, feedback, nota, avaliada_em, avaliada_por_nome';
 const COLUNAS_ATIVIDADE = `id, turma_id, trilha_id, titulo, enunciado, link_enunciado, prazo, exige_texto, exige_link, tipo_link, exige_arquivo, formatos, grupo_min, grupo_max, grupos_montados_por, trilha:trilhas(nome, ordem), tentativas(${COLUNAS_TENTATIVA})`;
+
+/**
+ * Na equipe, cada atividade vem com os grupos. O nome da chave tira a dúvida: as
+ * entregas também ligam atividade e grupo, e o PostgREST não escolheria sozinho.
+ */
+const COLUNAS_ATIVIDADE_DA_TURMA = `${COLUNAS_ATIVIDADE}, grupos:grupos_da_atividade!grupos_da_atividade_atividade_id_fkey(id, integrantes:integrantes_do_grupo(participante_id))`;
 
 /** Chaves do cache (ver lib/cache.ts) */
 export const CHAVE_ATIVIDADES_ALUNO = 'atividades:aluno';
@@ -140,6 +167,24 @@ const prazoEncerrado = (prazo: string | null) => prazo !== null && new Date(praz
 export const tentativasDe = (atividade: Atividade, participanteId: number) =>
   atividade.tentativas.filter((t) => t.participante_id === participanteId);
 
+/** Tentativas de um grupo, da 1ª à última */
+export const tentativasDoGrupo = (atividade: Atividade, grupoId: number) =>
+  atividade.tentativas.filter((t) => t.grupo_id === grupoId);
+
+/** O grupo do aluno nesta atividade (undefined se ainda não tem) */
+export const grupoDoAluno = (atividadeId: number, grupos: GrupoDoAluno[]) =>
+  grupos.find((g) => g.atividade_id === atividadeId);
+
+/**
+ * O que o aluno vê como a entrega dele: no individual, as tentativas dele; em grupo,
+ * as do grupo, mesmo que outro integrante tenha enviado (sem grupo, nenhuma).
+ */
+export function tentativasDoAluno(atividade: Atividade, participanteId: number, grupos: GrupoDoAluno[]) {
+  if (!emGrupo(atividade)) return tentativasDe(atividade, participanteId);
+  const grupo = grupoDoAluno(atividade.id, grupos);
+  return grupo ? tentativasDoGrupo(atividade, grupo.grupo_id) : [];
+}
+
 export function situacaoDoAluno(tentativas: Tentativa[], prazo: string | null): Situacao {
   const ultima = tentativas[tentativas.length - 1];
   if (!ultima) return prazoEncerrado(prazo) ? 'encerrada' : 'pendente';
@@ -149,8 +194,27 @@ export function situacaoDoAluno(tentativas: Tentativa[], prazo: string | null): 
 /** O aluno ainda pode enviar? (1º envio até o prazo, ou sempre se não houver; depois de "Refazer", sempre) */
 export const podeEnviar = (situacao: Situacao) => situacao === 'pendente' || situacao === 'refazer';
 
-/** Resumo da atividade só com quem está na turma: entregas para corrigir, quem entregou e o prazo */
+/** Grupos com pelo menos um integrante na turma (quem trocou de turma não conta) */
+const gruposNaTurma = (atividade: Atividade, idsDosAlunos: Set<number>) =>
+  (atividade.grupos ?? []).filter((g) => g.integrantes.some((id) => idsDosAlunos.has(id)));
+
+/**
+ * Resumo da atividade só com quem está na turma: entregas para corrigir, quem entregou e o prazo.
+ * Em grupo a entrega é do grupo: "aguardando" conta as entregas dos grupos, e "entregaram"
+ * conta os alunos da turma cujo grupo já entregou.
+ */
 export function resumoNaTurma(atividade: Atividade, idsDosAlunos: Set<number>) {
+  if (emGrupo(atividade)) {
+    const grupos = gruposNaTurma(atividade, idsDosAlunos);
+    const doGrupo = (g: GrupoDaAtividade) => tentativasDoGrupo(atividade, g.id);
+    return {
+      aguardando: grupos.reduce((total, g) => total + doGrupo(g).filter((t) => t.status === 'aguardando').length, 0),
+      entregaram: grupos
+        .filter((g) => doGrupo(g).length > 0)
+        .reduce((total, g) => total + g.integrantes.filter((id) => idsDosAlunos.has(id)).length, 0),
+      encerrada: prazoEncerrado(atividade.prazo),
+    };
+  }
   const daTurma = atividade.tentativas.filter((t) => idsDosAlunos.has(t.participante_id));
   return {
     aguardando: daTurma.filter((t) => t.status === 'aguardando').length,
@@ -162,6 +226,49 @@ export function resumoNaTurma(atividade: Atividade, idsDosAlunos: Set<number>) {
 /** Entregas esperando correção num conjunto de atividades (só de quem está na turma) */
 export const paraCorrigir = (atividades: Atividade[], idsDosAlunos: Set<number>) =>
   atividades.reduce((total, a) => total + resumoNaTurma(a, idsDosAlunos).aguardando, 0);
+
+export interface LinhaDoGrupo {
+  id: number;
+  /** Só os integrantes que estão na turma */
+  integrantes: AlunoDaTurma[];
+  tentativas: Tentativa[];
+}
+
+/**
+ * Entregas de uma atividade em grupo, para a equipe: uma linha por grupo e os alunos
+ * da turma que ainda não estão em grupo nenhum.
+ */
+export function linhasDeEntrega(atividade: Atividade, alunos: AlunoDaTurma[]) {
+  const porId = new Map(alunos.map((a) => [a.id, a]));
+  // Na ordem de criação, para "Grupo 1, Grupo 2..." não trocar entre uma abertura e outra
+  const naOrdem = [...gruposNaTurma(atividade, new Set(porId.keys()))].sort((a, b) => a.id - b.id);
+  const grupos: LinhaDoGrupo[] = naOrdem.map((g) => ({
+    id: g.id,
+    integrantes: g.integrantes.flatMap((id) => porId.get(id) ?? []),
+    tentativas: tentativasDoGrupo(atividade, g.id),
+  }));
+  const comGrupo = new Set(grupos.flatMap((g) => g.integrantes.map((a) => a.id)));
+  return { grupos, semGrupo: alunos.filter((a) => !comGrupo.has(a.id)) };
+}
+
+/** Linha de integrantes_dos_meus_grupos (uma por integrante) */
+export interface IntegranteDoMeuGrupo {
+  atividade_id: number;
+  grupo_id: number;
+  participante_id: number;
+  nome: string;
+}
+
+/** Junta as linhas por grupo: um GrupoDoAluno por atividade */
+export function agruparIntegrantes(linhas: IntegranteDoMeuGrupo[]): GrupoDoAluno[] {
+  const porGrupo = new Map<number, GrupoDoAluno>();
+  for (const l of linhas) {
+    const grupo = porGrupo.get(l.grupo_id) ?? { atividade_id: l.atividade_id, grupo_id: l.grupo_id, integrantes: [] };
+    grupo.integrantes.push({ id: l.participante_id, nome: l.nome });
+    porGrupo.set(l.grupo_id, grupo);
+  }
+  return [...porGrupo.values()];
+}
 
 /** Por prazo (as sem prazo no fim); no empate, pela ordem de criação (id) */
 export function arrumar(atividades: Atividade[]): Atividade[] {
@@ -182,30 +289,45 @@ export class ServicoAtividades {
 
     const visualizacao = !perfil.participanteId && perfil.podeAlternarPapel;
     if (!perfil.participanteId && !visualizacao) {
-      return { participanteId: null, visualizacao: false, turmas: [], atividades: [] };
+      return { participanteId: null, visualizacao: false, turmas: [], atividades: [], grupos: [] };
     }
 
-    const [atividades, turmas] = await Promise.all([
+    const [atividades, turmas, integrantes] = await Promise.all([
       supabase.from('atividades').select(COLUNAS_ATIVIDADE),
       visualizacao ? servicoTurmas.carregarComEdicao() : Promise.resolve([]),
+      // Visualização não tem aluno ligado, então não está em grupo nenhum
+      visualizacao ? Promise.resolve({ data: [], error: null }) : supabase.rpc('integrantes_dos_meus_grupos'),
     ]);
     if (atividades.error) throw atividades.error;
+    if (integrantes.error) throw integrantes.error;
     return {
       participanteId: perfil.participanteId,
       visualizacao,
       turmas,
       atividades: arrumar(atividades.data as unknown as Atividade[]),
+      grupos: agruparIntegrantes(integrantes.data as IntegranteDoMeuGrupo[]),
     };
   }
 
   async carregarDaTurma(turmaId: number): Promise<AtividadesDaTurma> {
     const [alunos, atividades] = await Promise.all([
       supabase.from('participantes').select('id, nome').eq('turma_id', turmaId).eq('funcao', 'aluno').order('nome'),
-      supabase.from('atividades').select(COLUNAS_ATIVIDADE).eq('turma_id', turmaId),
+      supabase.from('atividades').select(COLUNAS_ATIVIDADE_DA_TURMA).eq('turma_id', turmaId),
     ]);
     if (alunos.error) throw alunos.error;
     if (atividades.error) throw atividades.error;
-    return { alunos: alunos.data, atividades: arrumar(atividades.data as unknown as Atividade[]) };
+    const lidas = atividades.data as unknown as (Omit<Atividade, 'grupos'> & {
+      grupos: { id: number; integrantes: { participante_id: number }[] }[];
+    })[];
+    return {
+      alunos: alunos.data,
+      atividades: arrumar(
+        lidas.map((a) => ({
+          ...a,
+          grupos: a.grupos.map((g) => ({ id: g.id, integrantes: g.integrantes.map((i) => i.participante_id) })),
+        })),
+      ),
+    };
   }
 
   /** Cria (com turma) ou edita (com id). Devolve o id da atividade, ou o texto da falha. */

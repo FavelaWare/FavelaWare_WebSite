@@ -3,21 +3,33 @@ import { describe, expect, it, vi } from 'vitest';
 vi.mock('./supabase', () => import('../testes/supabaseFalso'));
 
 import {
+  agruparIntegrantes,
   arrumar,
   FORMATO_INDIVIDUAL,
+  linhasDeEntrega,
   rotuloDoFormato,
   resumoNaTurma,
   paraCorrigir,
   servicoAtividades,
   situacaoDoAluno,
+  tentativasDe,
+  tentativasDoAluno,
   type Atividade,
+  type GrupoDaAtividade,
+  type GrupoDoAluno,
   type Tentativa,
 } from './atividades';
 import { SEM_REGRAS } from './entregas';
 
-const tentativa = (participante: number, status: Tentativa['status'], numero = 1): Tentativa => ({
+const tentativa = (
+  participante: number,
+  status: Tentativa['status'],
+  numero = 1,
+  grupo: number | null = null,
+): Tentativa => ({
   id: participante * 10 + numero,
   participante_id: participante,
+  grupo_id: grupo,
   numero,
   comentario: null,
   link: null,
@@ -67,6 +79,95 @@ describe('resumo da atividade na turma', () => {
 
   it('soma as entregas para corrigir de várias atividades', () => {
     expect(paraCorrigir([a, a], naTurma)).toBe(2);
+  });
+});
+
+describe('atividade em grupo', () => {
+  // Dupla: grupo 7 (alunos 1 e 2) entregou duas vezes, sempre pelo aluno 1;
+  // grupo 8 (3 e 4) não entregou; aluno 5 sem grupo; grupo 9 só tem quem saiu da turma (99)
+  const dupla = (grupos: GrupoDaAtividade[]): Atividade => ({
+    ...atividade('2999-01-01T00:00:00Z', [
+      tentativa(1, 'refazer', 1, 7),
+      tentativa(1, 'aguardando', 2, 7),
+      tentativa(99, 'aguardando', 1, 9),
+    ]),
+    grupo_min: 2,
+    grupo_max: 2,
+    grupos_montados_por: 'alunos',
+    grupos,
+  });
+  const a = dupla([
+    { id: 7, integrantes: [1, 2] },
+    { id: 8, integrantes: [3, 4] },
+    { id: 9, integrantes: [99] },
+  ]);
+  const naTurma = new Set([1, 2, 3, 4, 5]);
+  const alunos = [1, 2, 3, 4, 5].map((id) => ({ id, nome: `Aluno ${id}` }));
+  const grupoDe = (participante: number): GrupoDoAluno[] =>
+    participante <= 2 ? [{ atividade_id: 1, grupo_id: 7, integrantes: [] }] : [];
+
+  it('o integrante vê como dele a entrega que o colega enviou', () => {
+    expect(tentativasDoAluno(a, 1, grupoDe(1)).map((t) => t.numero)).toEqual([1, 2]);
+    expect(tentativasDoAluno(a, 2, grupoDe(2)).map((t) => t.numero)).toEqual([1, 2]);
+    expect(situacaoDoAluno(tentativasDoAluno(a, 1, grupoDe(1)), a.prazo)).toBe('aguardando');
+  });
+
+  it('sem grupo, o aluno não tem entrega (nem a que ele mesmo enviou para um grupo de que saiu)', () => {
+    expect(tentativasDoAluno(a, 5, [])).toEqual([]);
+    expect(tentativasDoAluno(a, 1, [])).toEqual([]);
+  });
+
+  it('individual continua só com as tentativas do próprio aluno', () => {
+    const individual = atividade(null, [tentativa(1, 'aguardando'), tentativa(2, 'concluida')]);
+    expect(tentativasDoAluno(individual, 1, [])).toEqual(tentativasDe(individual, 1));
+  });
+
+  it('conta uma entrega para corrigir por grupo e todos do grupo como entregues', () => {
+    expect(resumoNaTurma(a, naTurma)).toEqual({ aguardando: 1, entregaram: 2, encerrada: false });
+  });
+
+  it('soma grupo e individual nas entregas para corrigir', () => {
+    const individual = atividade(null, [tentativa(3, 'aguardando')], 2);
+    expect(paraCorrigir([a, individual], naTurma)).toBe(2);
+  });
+
+  it('uma linha por grupo, sem o grupo de fora da turma, e quem está sem grupo', () => {
+    const { grupos, semGrupo } = linhasDeEntrega(a, alunos);
+    expect(grupos.map((g) => [g.id, g.integrantes.map((i) => i.nome), g.tentativas.length])).toEqual([
+      [7, ['Aluno 1', 'Aluno 2'], 2],
+      [8, ['Aluno 3', 'Aluno 4'], 0],
+    ]);
+    expect(semGrupo.map((s) => s.id)).toEqual([5]);
+  });
+
+  it('aluno tirado do grupo volta a pendente e deixa de contar como entregue', () => {
+    const semOAluno2 = dupla([
+      { id: 7, integrantes: [1] },
+      { id: 8, integrantes: [3, 4] },
+    ]);
+    expect(situacaoDoAluno(tentativasDoAluno(semOAluno2, 2, []), semOAluno2.prazo)).toBe('pendente');
+    expect(resumoNaTurma(semOAluno2, naTurma).entregaram).toBe(1);
+    expect(linhasDeEntrega(semOAluno2, alunos).semGrupo.map((s) => s.id)).toEqual([2, 5]);
+  });
+
+  it('junta os integrantes de cada grupo do aluno', () => {
+    expect(
+      agruparIntegrantes([
+        { atividade_id: 1, grupo_id: 7, participante_id: 1, nome: 'Ana' },
+        { atividade_id: 1, grupo_id: 7, participante_id: 2, nome: 'Bia' },
+        { atividade_id: 3, grupo_id: 9, participante_id: 1, nome: 'Ana' },
+      ]),
+    ).toEqual([
+      {
+        atividade_id: 1,
+        grupo_id: 7,
+        integrantes: [
+          { id: 1, nome: 'Ana' },
+          { id: 2, nome: 'Bia' },
+        ],
+      },
+      { atividade_id: 3, grupo_id: 9, integrantes: [{ id: 1, nome: 'Ana' }] },
+    ]);
   });
 });
 

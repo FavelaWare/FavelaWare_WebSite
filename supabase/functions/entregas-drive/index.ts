@@ -6,7 +6,9 @@
  *
  * Rotas:
  *   POST /entregas-drive/enviar  (multipart, com login do aluno)
- *        campos: atividade_id, comentario?, link?, arquivo
+ *        campos: atividade_id, comentario?, link?, colegas?, arquivo
+ *        (colegas: JSON com os ids dos colegas, só no 1º envio de atividade em que os
+ *        alunos montam o grupo; o registro forma o grupo junto, por enviar_em_grupo)
  *        0. confere tamanho, tipo pelo conteúdo e os textos;
  *        1. reserva a vaga com o login do aluno (reservar_arquivo: regra de envio,
  *           limite de arquivos e cota diária, com trava contra pedidos simultâneos);
@@ -58,6 +60,8 @@ import {
 /** Mesmos limites do banco, conferidos antes do Drive */
 const TAMANHO_MAXIMO_COMENTARIO = 10000;
 const TAMANHO_MAXIMO_LINK = 2000;
+/** Grupo de até 50 (o teto do banco): quem envia + 49 colegas */
+const MAXIMO_DE_COLEGAS = 49;
 
 const CORS = cabecalhosCors('GET, POST, OPTIONS');
 const resposta = criarResposta(CORS);
@@ -89,6 +93,8 @@ interface PedidoDeEnvio {
   atividadeId: number;
   comentario: string;
   link: string;
+  /** Colegas do grupo (1º envio em que os alunos montam); null no envio de sempre */
+  colegas: number[] | null;
   arquivo: File;
   bytes: Uint8Array;
   ext: string;
@@ -118,7 +124,37 @@ async function lerPedidoDeEnvio(req: Request): Promise<PedidoDeEnvio | Response>
   }
   if (link.length > TAMANHO_MAXIMO_LINK) return resposta(400, { erro: 'O link é longo demais.' });
   if (/\u0000/.test(comentario + link)) return resposta(400, { erro: 'O texto tem caracteres inválidos.' });
-  return { atividadeId, comentario, link, arquivo, bytes, ext, nome: nomeParaDownload(arquivo.name, ext, 'entrega') };
+  const colegas = lerColegas(form.get('colegas'));
+  if (colegas === undefined) return resposta(400, { erro: 'Lista de colegas inválida.' });
+  return {
+    atividadeId,
+    comentario,
+    link,
+    colegas,
+    arquivo,
+    bytes,
+    ext,
+    nome: nomeParaDownload(arquivo.name, ext, 'entrega'),
+  };
+}
+
+/**
+ * Campo "colegas" do formulário: ausente = null; lista de ids inteiros positivos, sem
+ * repetir e até MAXIMO_DE_COLEGAS. Qualquer outra coisa = undefined (pedido recusado
+ * antes do Drive). Quem pode entrar no grupo o banco confere em enviar_em_grupo.
+ */
+function lerColegas(campo: FormDataEntryValue | null): number[] | null | undefined {
+  if (campo === null) return null;
+  if (typeof campo !== 'string' || campo.length > 1000) return undefined;
+  let lista: unknown;
+  try {
+    lista = JSON.parse(campo);
+  } catch {
+    return undefined;
+  }
+  if (!Array.isArray(lista) || lista.length > MAXIMO_DE_COLEGAS) return undefined;
+  if (!lista.every((id) => Number.isSafeInteger(id) && id > 0)) return undefined;
+  return new Set(lista).size === lista.length ? (lista as number[]) : undefined;
 }
 
 /**
@@ -225,14 +261,23 @@ async function enviar(req: Request): Promise<Response> {
     return resposta(500, { erro: 'Não foi possível registrar a entrega. Tente de novo.' });
   }
 
-  // 4. Entrega (com o login do aluno: triggers e RLS valem)
-  const { error: erroEntrega } = await usuario.from('tentativas').insert({
-    atividade_id: atividadeId,
-    participante_id: reserva.participante_id,
-    comentario: pedido.comentario || null,
-    link: pedido.link || null,
-    arquivo_id: reserva.arquivo_id,
-  });
+  // 4. Entrega (com o login do aluno: triggers e RLS valem). Com colegas, o banco forma
+  //    o grupo e registra a entrega na mesma transação.
+  const { error: erroEntrega } = pedido.colegas
+    ? await usuario.rpc('enviar_em_grupo', {
+        p_atividade: atividadeId,
+        p_colegas: pedido.colegas,
+        p_comentario: pedido.comentario || null,
+        p_link: pedido.link || null,
+        p_arquivo_id: reserva.arquivo_id,
+      })
+    : await usuario.from('tentativas').insert({
+        atividade_id: atividadeId,
+        participante_id: reserva.participante_id,
+        comentario: pedido.comentario || null,
+        link: pedido.link || null,
+        arquivo_id: reserva.arquivo_id,
+      });
   if (erroEntrega) {
     console.error('[entregas-drive] falha ao registrar a entrega; limpando', erroEntrega.code);
     await descartar(reserva.arquivo_id, driveId);

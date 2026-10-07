@@ -22,11 +22,14 @@ import {
   MAXIMO_POR_GRUPO,
   servicoAtividades,
   tentativasDe,
+  tentativasDoGrupo,
   type AlunoDaTurma,
   type Atividade,
   type FormatoDaAtividade,
   type QuemMontaOsGrupos,
+  type Tentativa,
 } from '../../lib/atividades';
+import type { QuemEntregou } from '../trilhas/tipos';
 import {
   FORMATOS,
   ROTULO_TIPO_LINK,
@@ -539,19 +542,26 @@ const RegrasDaEntrega: React.FC<{
 };
 
 // ============ CORRIGIR ============
-export const Corrigir: React.FC<{ atividade: Atividade; aluno: AlunoDaTurma; aoSalvar: () => Promise<void> }> = ({
-  atividade,
-  aluno,
-  aoSalvar,
-}) => {
-  const tentativas = tentativasDe(atividade, aluno.id);
+// Em grupo, a correção é uma só e vale para todos os integrantes (o banco guarda na entrega do grupo)
+export const Corrigir: React.FC<{
+  atividade: Atividade;
+  quem: QuemEntregou;
+  /** Alunos da turma: dão o nome de quem enviou cada tentativa do grupo */
+  alunos: AlunoDaTurma[];
+  aoSalvar: () => Promise<void>;
+}> = ({ atividade, quem, alunos, aoSalvar }) => {
+  const doGrupo = 'grupoId' in quem;
+  const tentativas = doGrupo ? tentativasDoGrupo(atividade, quem.grupoId) : tentativasDe(atividade, quem.aluno.id);
+  const nomeDoAluno = doGrupo
+    ? (t: Tentativa) => alunos.find((a) => a.id === t.participante_id)?.nome ?? 'Ex-integrante do grupo'
+    : quem.aluno.nome;
   const ultima = tentativas[tentativas.length - 1];
   const [feedback, setFeedback] = useState(ultima?.status !== 'aguardando' ? (ultima?.feedback ?? '') : '');
   const [nota, setNota] = useState(ultima?.nota != null ? String(ultima.nota) : '');
   const [salvando, setSalvando] = useState<'concluida' | 'refazer' | null>(null);
   const [mensagem, setMensagem] = useState<Mensagem>(null);
 
-  if (!ultima) return <Vazio>Este aluno ainda não entregou.</Vazio>;
+  if (!ultima) return <Vazio>{doGrupo ? 'Este grupo ainda não entregou.' : 'Este aluno ainda não entregou.'}</Vazio>;
 
   const responder = async (status: 'concluida' | 'refazer') => {
     setMensagem(null);
@@ -565,7 +575,12 @@ export const Corrigir: React.FC<{ atividade: Atividade; aluno: AlunoDaTurma; aoS
       await aoSalvar();
       setMensagem({
         tipo: 'sucesso',
-        texto: status === 'concluida' ? 'Entrega concluída.' : 'Pedido de refazer enviado ao aluno.',
+        texto:
+          status === 'concluida'
+            ? doGrupo
+              ? 'Entrega concluída: a nota vale para todo o grupo.'
+              : 'Entrega concluída.'
+            : `Pedido de refazer enviado ao ${doGrupo ? 'grupo' : 'aluno'}.`,
       });
     } catch (e) {
       console.error('[atividades] corrigiu, mas falhou ao atualizar', e);
@@ -576,7 +591,7 @@ export const Corrigir: React.FC<{ atividade: Atividade; aluno: AlunoDaTurma; aoS
 
   return (
     <div className="space-y-6">
-      <HistoricoDeTentativas tentativas={tentativas} nomeDoAluno={aluno.nome} />
+      <HistoricoDeTentativas tentativas={tentativas} nomeDoAluno={nomeDoAluno} />
 
       <div className={`border-t border-gray-100 pt-5 ${espaco.formulario}`}>
         <p className={texto.titulo}>
@@ -586,7 +601,7 @@ export const Corrigir: React.FC<{ atividade: Atividade; aluno: AlunoDaTurma; aoS
         </p>
         <div>
           <label htmlFor="correcao-feedback" className={classeRotulo}>
-            Feedback para o aluno
+            {doGrupo ? 'Feedback para o grupo' : 'Feedback para o aluno'}
           </label>
           <textarea
             id="correcao-feedback"

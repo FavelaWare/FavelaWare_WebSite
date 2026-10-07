@@ -9,6 +9,7 @@
  * (migration 20261001128000_atividades_em_grupo.sql).
  * O serviço lê os grupos de uma atividade e grava a distribuição inteira de uma vez.
  */
+import type { AlunoDaTurma } from './atividades';
 import { codigoDoErro, mensagemDaRegraDoBanco } from './banco';
 import { supabase } from './supabase';
 
@@ -63,6 +64,13 @@ export function sortearGrupos(
   return { grupos, semGrupo: sorteados.slice(distribuidos) };
 }
 
+/** Mensagem para o aluno quando o grupo (ele incluído) não está no tamanho; null se está */
+export function problemaNoTamanho(integrantes: number, minimo: number, maximo: number): string | null {
+  if (tamanhoDoGrupo(integrantes, minimo, maximo) === 'certo') return null;
+  const tamanho = minimo === maximo ? `${minimo} integrantes` : `de ${minimo} a ${maximo} integrantes`;
+  return `O grupo precisa ter ${tamanho}, contando com você.`;
+}
+
 export class ServicoGrupos {
   /** Grupos da atividade, do mais antigo ao mais novo, com quem está em cada um */
   async carregar(atividadeId: number): Promise<GrupoEmEdicao[]> {
@@ -88,6 +96,36 @@ export class ServicoGrupos {
     if (!error) return null;
     console.error('[grupos] falha ao gravar os grupos', codigoDoErro(error));
     return mensagemDaRegraDoBanco(error, 'Não foi possível salvar os grupos.');
+  }
+
+  /** Aluno: colegas da turma que ainda não estão em grupo nesta atividade (só id e nome) */
+  async colegasLivres(atividadeId: number): Promise<AlunoDaTurma[]> {
+    const { data, error } = await supabase.rpc('colegas_livres', { p_atividade: atividadeId });
+    if (error) throw error;
+    return data as AlunoDaTurma[];
+  }
+
+  /** Equipe: põe o aluno num grupo (grupoId null cria um grupo novo). Devolve null se deu certo. */
+  async incluir(atividadeId: number, participanteId: number, grupoId: number | null): Promise<string | null> {
+    const { error } = await supabase.rpc('incluir_no_grupo', {
+      p_atividade: atividadeId,
+      p_participante: participanteId,
+      p_grupo: grupoId,
+    });
+    if (!error) return null;
+    console.error('[grupos] falha ao incluir no grupo', codigoDoErro(error));
+    return mensagemDaRegraDoBanco(error, 'Não foi possível incluir o aluno no grupo.');
+  }
+
+  /** Equipe: tira o aluno do grupo dele nesta atividade. Devolve null se deu certo. */
+  async tirar(atividadeId: number, participanteId: number): Promise<string | null> {
+    const { error } = await supabase.rpc('tirar_do_grupo', {
+      p_atividade: atividadeId,
+      p_participante: participanteId,
+    });
+    if (!error) return null;
+    console.error('[grupos] falha ao tirar do grupo', codigoDoErro(error));
+    return mensagemDaRegraDoBanco(error, 'Não foi possível tirar o aluno do grupo.');
   }
 }
 

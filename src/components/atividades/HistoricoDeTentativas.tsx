@@ -3,7 +3,7 @@
  * HISTÓRICO DE UMA ENTREGA
  * ============================================
  *
- * Linha do tempo das tentativas de um aluno numa atividade (modelo "Entrega:
+ * Linha do tempo das tentativas de um aluno (ou de um grupo) numa atividade (modelo "Entrega:
  * Exercício"): o envio do aluno com data e hora e, abaixo, a resposta do
  * professor. No fim, a situação: concluída com a nota, refazer ou aguardando.
  *
@@ -65,12 +65,14 @@ const BotaoArquivo: React.FC<{ tentativa: Tentativa; nome: string }> = ({ tentat
   );
 };
 
-const HistoricoDeTentativas: React.FC<{ tentativas: Tentativa[]; nomeDoAluno: string }> = ({
-  tentativas,
-  nomeDoAluno,
-}) => {
+const HistoricoDeTentativas: React.FC<{
+  tentativas: Tentativa[];
+  /** Em grupo, cada tentativa pode ter sido enviada por um integrante diferente */
+  nomeDoAluno: string | ((t: Tentativa) => string);
+}> = ({ tentativas, nomeDoAluno }) => {
   if (!tentativas.length) return null;
   const ultima = tentativas[tentativas.length - 1]!;
+  const quemEnviou = (t: Tentativa) => (typeof nomeDoAluno === 'string' ? nomeDoAluno : nomeDoAluno(t));
 
   return (
     <div>
@@ -81,10 +83,10 @@ const HistoricoDeTentativas: React.FC<{ tentativas: Tentativa[]; nomeDoAluno: st
 
             {/* Envio do aluno */}
             <div className="flex gap-3">
-              <Avatar nome={nomeDoAluno} tom="aluno" />
+              <Avatar nome={quemEnviou(t)} tom="aluno" />
               <div className="min-w-0 flex-1">
                 <p className="text-sm">
-                  <span className="font-semibold text-gray-900">{nomeDoAluno}</span>
+                  <span className="font-semibold text-gray-900">{quemEnviou(t)}</span>
                   <span className={`ml-2 ${texto.apoio}`}>• {formatarDataHora(t.enviada_em)}</span>
                 </p>
                 <div className="mt-2 space-y-2">

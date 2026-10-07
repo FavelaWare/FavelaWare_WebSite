@@ -10,6 +10,10 @@
  *
  * Conta de demonstração ("ver como aluno", sem aluno ligado): o formulário é
  * conferido igual ao do aluno, mas o envio não é gravado (o banco também não deixaria).
+ *
+ * Atividade em grupo: a entrega é do grupo e qualquer integrante envia.
+ * - Professor monta: mostra o grupo; sem grupo, o aluno é orientado a falar com o instrutor.
+ * - Alunos montam: no 1º envio, quem envia escolhe os colegas (só os da turma sem grupo).
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 
@@ -26,13 +30,20 @@ import { Aviso, Botao, classeCampo, classeDoBotao, classeRotulo, classeTextoLong
 import { estado, foco, selo, texto } from '../admin/designSystem';
 import HistoricoDeTentativas from './HistoricoDeTentativas';
 import {
+  emGrupo,
   podeEnviar,
   ROTULO_SITUACAO,
+  rotuloDoFormato,
   situacaoDoAluno,
-  tentativasDe,
+  tentativasDoAluno,
+  type AlunoDaTurma,
   type Atividade,
+  type GrupoDoAluno,
   type Situacao,
+  type Tentativa,
 } from '../../lib/atividades';
+import { problemaNoTamanho, servicoGrupos, tamanhoDoGrupo } from '../../lib/grupos';
+import { codigoDoErro } from '../../lib/banco';
 import {
   formatosEmTexto,
   ROTULO_TIPO_LINK,
@@ -76,15 +87,56 @@ function quantoFalta(prazo: string): string {
 interface PropsJanela {
   atividade: Atividade;
   participanteId: number;
+  /** Grupos do aluno (só os das atividades em grupo) */
+  grupos: GrupoDoAluno[];
   demonstracao: boolean;
   aoEnviar: () => Promise<void>;
   onFechar: () => void;
 }
 
-const JanelaDaAtividade: React.FC<PropsJanela> = ({ atividade, participanteId, demonstracao, aoEnviar, onFechar }) => {
-  const tentativas = tentativasDe(atividade, participanteId);
+const JanelaDaAtividade: React.FC<PropsJanela> = ({
+  atividade,
+  participanteId,
+  grupos,
+  demonstracao,
+  aoEnviar,
+  onFechar,
+}) => {
+  const tentativas = tentativasDoAluno(atividade, participanteId, grupos);
   const situacao = situacaoDoAluno(tentativas, atividade.prazo);
-  const envioAberto = podeEnviar(situacao);
+  const ehGrupo = emGrupo(atividade);
+  const meuGrupo = ehGrupo ? grupos.find((g) => g.atividade_id === atividade.id) : undefined;
+  // Professor monta e ainda não pôs o aluno num grupo: não há como enviar
+  const esperandoGrupo = ehGrupo && atividade.grupos_montados_por === 'professor' && !meuGrupo;
+  // Alunos montam e este aluno ainda não tem grupo: escolhe os colegas no 1º envio
+  const escolheColegas = ehGrupo && atividade.grupos_montados_por === 'alunos' && !meuGrupo;
+  const grupoPequeno =
+    meuGrupo !== undefined &&
+    tamanhoDoGrupo(meuGrupo.integrantes.length, atividade.grupo_min, atividade.grupo_max) === 'abaixo';
+  const envioAberto = podeEnviar(situacao) && !esperandoGrupo;
+
+  // Colegas livres: undefined = carregando; null = falhou
+  const [colegas, setColegas] = useState<AlunoDaTurma[] | null | undefined>(undefined);
+  const [escolhidos, setEscolhidos] = useState<number[]>([]);
+  const carregarColegas = useCallback(async () => {
+    setColegas(undefined);
+    try {
+      const lista = await servicoGrupos.colegasLivres(atividade.id);
+      setColegas(lista);
+      // Quem entrou em outro grupo enquanto a janela estava aberta sai da escolha
+      setEscolhidos((atual) => atual.filter((id) => lista.some((c) => c.id === id)));
+    } catch (e) {
+      console.error('[atividades] falha ao carregar os colegas', codigoDoErro(e));
+      setColegas(null);
+    }
+  }, [atividade.id]);
+  const precisaDosColegas = escolheColegas && envioAberto;
+  useEffect(() => {
+    // Demonstração não tem turma de verdade: nenhum colega para escolher
+    if (!precisaDosColegas) return;
+    if (demonstracao) setColegas([]);
+    else void carregarColegas();
+  }, [precisaDosColegas, demonstracao, carregarColegas]);
 
   // Estado da entrega fica aqui: o botão de enviar mora no rodapé da janela
   const [link, setLink] = useState('');
@@ -128,15 +180,32 @@ const JanelaDaAtividade: React.FC<PropsJanela> = ({ atividade, participanteId, d
     const entrega = { comentario, link, arquivo };
 
     if (demonstracao) {
-      // Confere igual ao aluno, mas não grava nada
+      // Confere igual ao aluno, mas não grava nada (e não há colegas para escolher)
       const problema = servicoEntregas.validar(entrega, atividade);
       if (problema) return setMensagem({ tipo: 'erro', texto: problema });
       return setAvisoDemonstracao(true);
     }
 
-    const resultado = await servicoEntregas.enviar(atividade.id, participanteId, entrega, setEtapa, atividade);
+    // Tamanho do grupo antes de enviar (o banco confere de novo)
+    const tamanho = escolheColegas
+      ? problemaNoTamanho(escolhidos.length + 1, atividade.grupo_min, atividade.grupo_max)
+      : grupoPequeno
+        ? `O grupo precisa de pelo menos ${atividade.grupo_min} integrantes para enviar. Fale com o seu instrutor.`
+        : null;
+    if (tamanho) return setMensagem({ tipo: 'erro', texto: tamanho });
+
+    const resultado = await servicoEntregas.enviar(
+      atividade.id,
+      participanteId,
+      entrega,
+      setEtapa,
+      atividade,
+      escolheColegas ? escolhidos : undefined,
+    );
     if (resultado.status !== StatusProcessamento.Sucesso) {
       setEtapa(null);
+      // Um colega pode ter entrado em outro grupo nesse meio tempo: a lista se atualiza
+      if (escolheColegas) void carregarColegas();
       return setMensagem({ tipo: 'erro', texto: resultado.mensagem! });
     }
     try {
@@ -165,6 +234,7 @@ const JanelaDaAtividade: React.FC<PropsJanela> = ({ atividade, participanteId, d
   const topo = (
     <div className="flex flex-wrap items-center gap-2">
       {atividade.trilha && <span className={`${selo.base} ${selo.marca}`}>{atividade.trilha.nome}</span>}
+      {ehGrupo && <span className={`${selo.base} ${selo.neutro}`}>{rotuloDoFormato(atividade)}</span>}
       <span className={`${selo.base} ${COR_SITUACAO[situacao]}`}>{ROTULO_SITUACAO[situacao]}</span>
       <span className={`ml-auto flex items-center gap-1.5 ${texto.apoio}`}>
         <IconeRelogio className="h-4 w-4" />
@@ -228,6 +298,32 @@ const JanelaDaAtividade: React.FC<PropsJanela> = ({ atividade, participanteId, d
           )}
         </section>
 
+        {/* Grupo: quem está nele, ou o aviso de que o instrutor ainda não montou */}
+        {meuGrupo && (
+          <section aria-labelledby="titulo-grupo">
+            <h3 id="titulo-grupo" className={`mb-2 ${texto.rotuloMaiusculo}`}>
+              Seu grupo
+            </h3>
+            <p className={texto.corpo}>
+              {meuGrupo.integrantes.map((i) => (i.id === participanteId ? `${i.nome} (você)` : i.nome)).join(', ')}
+            </p>
+            {grupoPequeno && envioAberto && (
+              <p className={`mt-2 rounded-lg border p-3 text-sm ${estado.atencao}`}>
+                O grupo precisa de pelo menos {atividade.grupo_min} integrantes para enviar. Fale com o seu instrutor.
+              </p>
+            )}
+          </section>
+        )}
+        {esperandoGrupo && situacao !== 'encerrada' && (
+          <div role="status" className={`flex gap-3 rounded-lg border p-4 text-sm ${estado.atencao}`}>
+            <IconeAlerta className="mt-0.5 h-5 w-5" />
+            <div>
+              <p className="font-semibold">Você ainda não está em um grupo nesta atividade.</p>
+              <p className="mt-1">O instrutor monta os grupos. Fale com ele para entrar em um e liberar a entrega.</p>
+            </div>
+          </div>
+        )}
+
         {temRegras && envioAberto && (
           <section aria-labelledby="titulo-exigencias">
             <h3 id="titulo-exigencias" className={`mb-2 ${texto.rotuloMaiusculo}`}>
@@ -267,9 +363,12 @@ const JanelaDaAtividade: React.FC<PropsJanela> = ({ atividade, participanteId, d
               tabIndex={-1}
               className={`mb-4 rounded ${texto.rotuloMaiusculo} ${foco}`}
             >
-              Suas entregas
+              {ehGrupo ? 'Entregas do grupo' : 'Suas entregas'}
             </h3>
-            <HistoricoDeTentativas tentativas={tentativas} nomeDoAluno="Você" />
+            <HistoricoDeTentativas
+              tentativas={tentativas}
+              nomeDoAluno={ehGrupo ? (t) => quemEnviou(t, participanteId, meuGrupo) : 'Você'}
+            />
           </section>
         )}
 
@@ -282,12 +381,32 @@ const JanelaDaAtividade: React.FC<PropsJanela> = ({ atividade, participanteId, d
           >
             <div>
               <h3 id="titulo-entrega" className={texto.titulo}>
-                {numero > 1 ? `Sua ${numero}ª tentativa` : 'Sua entrega'}
+                {ehGrupo
+                  ? numero > 1
+                    ? `${numero}ª tentativa do grupo`
+                    : 'Entrega do grupo'
+                  : numero > 1
+                    ? `Sua ${numero}ª tentativa`
+                    : 'Sua entrega'}
               </h3>
               <p className={`mt-0.5 ${texto.apoio}`}>
-                Depois de enviar, o instrutor corrige e a resposta aparece aqui.
+                {ehGrupo
+                  ? 'Só um integrante envia: a entrega, a correção e a nota valem para todo o grupo.'
+                  : 'Depois de enviar, o instrutor corrige e a resposta aparece aqui.'}
               </p>
             </div>
+
+            {escolheColegas && (
+              <EscolherColegas
+                colegas={colegas}
+                escolhidos={escolhidos}
+                aoMudar={setEscolhidos}
+                aoTentarDeNovo={() => void carregarColegas()}
+                minimo={atividade.grupo_min}
+                maximo={atividade.grupo_max}
+                desabilitado={ocupado}
+              />
+            )}
 
             {/* Link */}
             <div>
@@ -466,6 +585,87 @@ const CampoDeArquivo: React.FC<{
         </label>
       )}
     </div>
+  );
+};
+
+/** Nome de quem enviou a tentativa do grupo ("Você", um colega, ou quem já saiu do grupo) */
+function quemEnviou(t: Tentativa, participanteId: number, grupo: GrupoDoAluno | undefined): string {
+  if (t.participante_id === participanteId) return 'Você';
+  return grupo?.integrantes.find((i) => i.id === t.participante_id)?.nome ?? 'Ex-integrante do grupo';
+}
+
+// ============================================
+// COLEGAS DO GRUPO (1º envio, quando os alunos montam)
+// ============================================
+const EscolherColegas: React.FC<{
+  /** undefined = carregando; null = falhou */
+  colegas: AlunoDaTurma[] | null | undefined;
+  escolhidos: number[];
+  aoMudar: (ids: number[]) => void;
+  aoTentarDeNovo: () => void;
+  minimo: number;
+  maximo: number;
+  desabilitado: boolean;
+}> = ({ colegas, escolhidos, aoMudar, aoTentarDeNovo, minimo, maximo, desabilitado }) => {
+  // Quem envia já conta como um integrante
+  const cheio = escolhidos.length + 1 >= maximo;
+  const tamanho = minimo === maximo ? `${maximo} pessoas` : `de ${minimo} a ${maximo} pessoas`;
+  const alternar = (id: number) =>
+    aoMudar(escolhidos.includes(id) ? escolhidos.filter((e) => e !== id) : [...escolhidos, id]);
+
+  return (
+    <fieldset aria-describedby="dica-colegas">
+      <legend className={classeRotulo}>
+        Colegas do grupo <Obrigatorio sim />
+      </legend>
+      <p id="dica-colegas" className={texto.apoio}>
+        O grupo tem {tamanho}, contando com você. Marque quem fez a atividade com você. A lista mostra só quem ainda não
+        está em um grupo.
+      </p>
+
+      {colegas === undefined ? (
+        <p className={`mt-2 ${texto.corpo}`}>Carregando os colegas…</p>
+      ) : colegas === null ? (
+        <div className="mt-2 flex flex-wrap items-center gap-3">
+          <p className="text-sm text-red-700">Não foi possível carregar os colegas.</p>
+          <Botao tamanho="pequeno" onClick={aoTentarDeNovo}>
+            Tentar de novo
+          </Botao>
+        </div>
+      ) : colegas.length === 0 ? (
+        <p className={`mt-2 ${texto.corpo}`}>Nenhum colega disponível: todos da turma já estão em um grupo.</p>
+      ) : (
+        <ul className="mt-2 grid gap-2 sm:grid-cols-2">
+          {colegas.map((c) => {
+            const marcado = escolhidos.includes(c.id);
+            return (
+              <li key={c.id}>
+                <label
+                  className={`flex cursor-pointer items-center gap-3 rounded-lg border px-3 py-2 text-sm has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-60 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-favela-green-500 ${
+                    marcado ? 'border-favela-green-500 bg-favela-green-50' : 'border-gray-200 bg-white hover:bg-gray-50'
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={marcado}
+                    disabled={desabilitado || (cheio && !marcado)}
+                    onChange={() => alternar(c.id)}
+                    className="h-4 w-4 accent-favela-green-600"
+                  />
+                  <span className="min-w-0 truncate text-gray-900">{c.nome}</span>
+                </label>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+
+      <p className={`mt-2 ${texto.apoio}`} aria-live="polite">
+        {escolhidos.length === 0
+          ? 'Ninguém marcado ainda.'
+          : `Grupo: você e mais ${escolhidos.length} ${escolhidos.length === 1 ? 'colega' : 'colegas'}${cheio ? ' (grupo completo)' : ''}.`}
+      </p>
+    </fieldset>
   );
 };
 

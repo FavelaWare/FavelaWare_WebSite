@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('./supabase', () => import('../testes/supabaseFalso'));
 
-import { embaralhar, sortearGrupos, tamanhoDoGrupo } from './grupos';
+import { embaralhar, problemaNoTamanho, sortearGrupos, tamanhoDoGrupo } from './grupos';
 
 const turma = (n: number) => Array.from({ length: n }, (_, i) => i + 1);
 const tamanhos = (grupos: number[][]) => grupos.map((g) => g.length).sort((a, b) => b - a);
@@ -15,6 +15,14 @@ describe('tamanho do grupo', () => {
     expect(tamanhoDoGrupo(2, 2, 3)).toBe('certo');
     expect(tamanhoDoGrupo(3, 2, 3)).toBe('certo');
     expect(tamanhoDoGrupo(4, 2, 3)).toBe('acima');
+  });
+});
+
+describe('tamanho antes de enviar', () => {
+  it('avisa o aluno quando o grupo, com ele, está fora do tamanho', () => {
+    expect(problemaNoTamanho(1, 2, 3)).toBe('O grupo precisa ter de 2 a 3 integrantes, contando com você.');
+    expect(problemaNoTamanho(3, 2, 2)).toBe('O grupo precisa ter 2 integrantes, contando com você.');
+    expect(problemaNoTamanho(2, 2, 3)).toBeNull();
   });
 });
 
