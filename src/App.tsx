@@ -48,6 +48,8 @@ const DefinirSenha = lazy(() => import('./pages/DefinirSenha')); // Destino do c
 const PrimeiroAcesso = lazy(() => import('./pages/PrimeiroAcesso')); // Aluno troca a senha padrão
 const DadosDoInstrutor = lazy(() => import('./pages/DadosDoInstrutor')); // Dados do RPA, logo após o login
 const Perfil = lazy(() => import('./pages/Perfil')); // Meu perfil (foto na barra superior)
+// Prévia com dados fictícios: fora do build de produção (import.meta.env.DEV é falso lá)
+const PreviaDeGrupos = import.meta.env.DEV ? lazy(() => import('./pages/previa/PreviaDeGrupos')) : null;
 
 // Área administrativa (/dashboard): carregada sob demanda, porque traz a biblioteca
 // de gráficos e só interessa a quem faz login como gestor
@@ -262,6 +264,9 @@ const App: React.FC = () => {
 
               {/* Link do convite do professor: ele cria a senha aqui */}
               <Route path="/definir-senha" element={<DefinirSenha />} />
+
+              {/* Prévia de tela em construção, com dados fictícios: só em `npm run dev` */}
+              {PreviaDeGrupos && <Route path="/previa/grupos" element={<PreviaDeGrupos />} />}
             </Routes>
           </Suspense>
         </LimiteDeErro>

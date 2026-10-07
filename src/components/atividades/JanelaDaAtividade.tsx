@@ -207,16 +207,19 @@ const JanelaDaAtividade: React.FC<PropsJanela> = ({ atividade, participanteId, d
           <h3 id="titulo-enunciado" className={`mb-2 ${texto.rotuloMaiusculo}`}>
             O que fazer
           </h3>
-          <div className="rounded-lg border-l-4 border-favela-green-500 bg-gray-50 p-4">
-            <p className={`whitespace-pre-wrap break-words leading-relaxed ${texto.corpo}`}>{atividade.enunciado}</p>
-          </div>
+          {/* Texto guardado no portal (atividades antigas e resumo); as novas só têm o link */}
+          {atividade.enunciado && (
+            <div className="mb-3 rounded-lg border-l-4 border-favela-green-500 bg-gray-50 p-4">
+              <p className={`whitespace-pre-wrap break-words leading-relaxed ${texto.corpo}`}>{atividade.enunciado}</p>
+            </div>
+          )}
           {/* A atividade completa fica no GitBook; a entrega é feita aqui */}
           {atividade.link_enunciado && (
             <a
               href={atividade.link_enunciado}
               target="_blank"
               rel="noopener noreferrer"
-              className={`mt-3 ${classeDoBotao('primario')}`}
+              className={classeDoBotao('primario')}
             >
               Ler a atividade completa
               <IconeLinkExterno className="h-4 w-4" />

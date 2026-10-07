@@ -4,8 +4,9 @@
  * ============================================
  *
  * Usados pelo professor e pelo gestor na página de trilhas:
- * - FormularioDeAtividade: publicar ou editar (título, enunciado, link do enunciado no
- *   GitBook, trilha, prazo opcional e o
+ * - FormularioDeAtividade: publicar ou editar, em blocos: sobre a atividade (trilha,
+ *   título e o link do enunciado no GitBook), prazo opcional, formato (individual, dupla,
+ *   trio ou grupo, e quem monta os grupos) e o
  *   que o aluno precisa enviar: comentário, link de um tipo, arquivo de certos formatos);
  * - Corrigir: histórico da entrega + feedback, nota (0 a 100) e Concluída/Refazer.
  * As regras (quem pode, prazo, só a última tentativa) ficam no banco.
@@ -15,7 +16,17 @@ import { useEffect, useState } from 'react';
 import { Aviso, Botao, Vazio, classeCampo, classeTextoLongo, classeRotulo, type Mensagem } from '../admin/Ui';
 import { espaco, foco, texto } from '../admin/designSystem';
 import HistoricoDeTentativas from './HistoricoDeTentativas';
-import { servicoAtividades, tentativasDe, type AlunoDaTurma, type Atividade } from '../../lib/atividades';
+import {
+  emGrupo,
+  FORMATO_INDIVIDUAL,
+  MAXIMO_POR_GRUPO,
+  servicoAtividades,
+  tentativasDe,
+  type AlunoDaTurma,
+  type Atividade,
+  type FormatoDaAtividade,
+  type QuemMontaOsGrupos,
+} from '../../lib/atividades';
 import {
   FORMATOS,
   ROTULO_TIPO_LINK,
@@ -28,19 +39,203 @@ import { useDadosEmCache } from '../../hooks/useDadosEmCache';
 import { CHAVE_MATERIAL, servicoMaterial } from '../../lib/material';
 import { deCampoDataHora, paraCampoDataHora } from '../../utils/datas';
 
+// ============ BLOCOS DO FORMULÁRIO ============
+/** Todo campo de uma linha com a mesma altura (select, texto, número e data) */
+const campoAlinhado = `${classeCampo} h-10`;
+
+/**
+ * Bloco com título: agrupa os campos que tratam do mesmo assunto. No computador os
+ * blocos ficam lado a lado, com a mesma altura (o conteúdo estica para preencher).
+ */
+const Bloco: React.FC<{ titulo: string; descricao?: string; className?: string; children: React.ReactNode }> = ({
+  titulo,
+  descricao,
+  className = '',
+  children,
+}) => (
+  <fieldset className={`flex min-w-0 flex-col rounded-xl border border-gray-200 bg-gray-50/60 p-4 ${className}`}>
+    <legend className="px-1 text-sm font-semibold text-gray-900">{titulo}</legend>
+    {descricao && <p className={`mb-4 ${texto.apoio}`}>{descricao}</p>}
+    {children}
+  </fieldset>
+);
+
+/** Opção grande de uma escolha única (um rádio com cara de cartão) */
+const Opcao: React.FC<{
+  nome: string;
+  rotulo: string;
+  apoio: string;
+  marcada: boolean;
+  desabilitada: boolean;
+  aoEscolher: () => void;
+}> = ({ nome, rotulo, apoio, marcada, desabilitada, aoEscolher }) => (
+  <label
+    className={`block h-full rounded-lg border p-3 transition-colors focus-within:ring-2 focus-within:ring-favela-green-500 ${
+      desabilitada ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'
+    } ${marcada ? 'border-favela-green-600 bg-favela-green-50' : 'border-gray-300 bg-white hover:border-gray-400'}`}
+  >
+    <input
+      type="radio"
+      name={nome}
+      checked={marcada}
+      disabled={desabilitada}
+      onChange={aoEscolher}
+      className="sr-only"
+    />
+    <span className={`block ${texto.destaque}`}>
+      {marcada ? '✓ ' : ''}
+      {rotulo}
+    </span>
+    <span className={`block ${texto.apoio}`}>{apoio}</span>
+  </label>
+);
+
+type TipoDeFormato = 'individual' | 'dupla' | 'trio' | 'grupo';
+
+const TIPOS_DE_FORMATO: { tipo: TipoDeFormato; rotulo: string; apoio: string }[] = [
+  { tipo: 'individual', rotulo: 'Individual', apoio: '1 aluno' },
+  { tipo: 'dupla', rotulo: 'Dupla', apoio: '2 alunos' },
+  { tipo: 'trio', rotulo: 'Trio', apoio: '3 alunos' },
+  { tipo: 'grupo', rotulo: 'Grupo', apoio: 'Você define' },
+];
+
+const tipoDoFormato = ({ grupo_min: minimo, grupo_max: maximo }: FormatoDaAtividade): TipoDeFormato =>
+  maximo <= 1 ? 'individual' : minimo === 2 && maximo === 2 ? 'dupla' : minimo === 3 && maximo === 3 ? 'trio' : 'grupo';
+
+/** O que a pessoa escolheu no bloco Formato (os números só valem no tipo "grupo") */
+interface EscolhaDeFormato {
+  tipo: TipoDeFormato;
+  minimo: string;
+  maximo: string;
+  quemMonta: QuemMontaOsGrupos;
+}
+
+const paraFormato = (e: EscolhaDeFormato): FormatoDaAtividade =>
+  e.tipo === 'individual'
+    ? FORMATO_INDIVIDUAL
+    : e.tipo === 'dupla'
+      ? { grupo_min: 2, grupo_max: 2, grupos_montados_por: e.quemMonta }
+      : e.tipo === 'trio'
+        ? { grupo_min: 3, grupo_max: 3, grupos_montados_por: e.quemMonta }
+        : { grupo_min: Number(e.minimo), grupo_max: Number(e.maximo), grupos_montados_por: e.quemMonta };
+
+const FormatoDaEntrega: React.FC<{
+  escolha: EscolhaDeFormato;
+  aoMudar: (e: EscolhaDeFormato) => void;
+  desabilitado: boolean;
+  /** Atividade com entregas: o banco não deixa mais trocar o formato */
+  travado: boolean;
+}> = ({ escolha, aoMudar, desabilitado, travado }) => {
+  const parado = desabilitado || travado;
+  // O bloco tem sempre os mesmos campos (a janela não muda de tamanho ao trocar de opção):
+  // o tamanho e quem monta só ficam desabilitados quando não se aplicam
+  const tamanhoLivre = escolha.tipo === 'grupo';
+  const individual = escolha.tipo === 'individual';
+  const { grupo_min: minimoFixo, grupo_max: maximoFixo } = paraFormato({ ...escolha, minimo: '0', maximo: '0' });
+  return (
+    <Bloco
+      titulo="Formato"
+      className="flex-1"
+      descricao={
+        travado
+          ? 'Esta atividade já tem entregas: o formato não pode mais mudar.'
+          : 'Em dupla, trio ou grupo, só um integrante envia, e a correção e a nota valem para todos.'
+      }
+    >
+      <div className="grid auto-rows-fr grid-cols-2 gap-2 sm:grid-cols-4">
+        {TIPOS_DE_FORMATO.map((t) => (
+          <Opcao
+            key={t.tipo}
+            nome="atividade-formato"
+            rotulo={t.rotulo}
+            apoio={t.apoio}
+            marcada={escolha.tipo === t.tipo}
+            desabilitada={parado}
+            aoEscolher={() => aoMudar({ ...escolha, tipo: t.tipo })}
+          />
+        ))}
+      </div>
+
+      <div className="mt-4 grid grid-cols-2 gap-2">
+        <div>
+          <label htmlFor="atividade-grupo-minimo" className={classeRotulo}>
+            Mínimo de integrantes
+          </label>
+          <input
+            id="atividade-grupo-minimo"
+            type="number"
+            inputMode="numeric"
+            required={tamanhoLivre}
+            min={1}
+            max={MAXIMO_POR_GRUPO}
+            value={tamanhoLivre ? escolha.minimo : minimoFixo}
+            disabled={parado || !tamanhoLivre}
+            className={campoAlinhado}
+            onChange={(e) => aoMudar({ ...escolha, minimo: e.target.value })}
+          />
+        </div>
+        <div>
+          <label htmlFor="atividade-grupo-maximo" className={classeRotulo}>
+            Máximo de integrantes
+          </label>
+          <input
+            id="atividade-grupo-maximo"
+            type="number"
+            inputMode="numeric"
+            required={tamanhoLivre}
+            min={2}
+            max={MAXIMO_POR_GRUPO}
+            value={tamanhoLivre ? escolha.maximo : maximoFixo}
+            disabled={parado || !tamanhoLivre}
+            className={campoAlinhado}
+            onChange={(e) => aoMudar({ ...escolha, maximo: e.target.value })}
+          />
+        </div>
+      </div>
+
+      <div className="mt-4">
+        <p id="atividade-quem-monta" className={classeRotulo}>
+          Quem monta os grupos
+        </p>
+        <div role="radiogroup" aria-labelledby="atividade-quem-monta" className="grid auto-rows-fr grid-cols-2 gap-2">
+          <Opcao
+            nome="atividade-quem-monta"
+            rotulo="O professor"
+            apoio="Você distribui a turma"
+            marcada={!individual && escolha.quemMonta === 'professor'}
+            desabilitada={parado || individual}
+            aoEscolher={() => aoMudar({ ...escolha, quemMonta: 'professor' })}
+          />
+          <Opcao
+            nome="atividade-quem-monta"
+            rotulo="Os alunos"
+            apoio="Quem envia escolhe os colegas"
+            marcada={!individual && escolha.quemMonta === 'alunos'}
+            desabilitada={parado || individual}
+            aoEscolher={() => aoMudar({ ...escolha, quemMonta: 'alunos' })}
+          />
+        </div>
+      </div>
+    </Bloco>
+  );
+};
+
 // ============ CRIAR / EDITAR ============
 export const FormularioDeAtividade: React.FC<{
   turmaId: number;
   atividade: Atividade | null;
   /** Atividade nova já começa nesta trilha (a do cartão onde se clicou) */
   trilhaInicial?: number;
-  aoSalvar: (mensagem: string) => Promise<void>;
+  /**
+   * `montarGruposDe` vem com o id da atividade recém-criada quando ela é em grupo e é o
+   * professor quem monta: a página abre "Montar grupos" em seguida.
+   */
+  aoSalvar: (mensagem: string, montarGruposDe?: number) => Promise<void>;
 }> = ({ turmaId, atividade, trilhaInicial, aoSalvar }) => {
   const { dados: trilhas, erro } = useDadosEmCache(CHAVE_MATERIAL, () => servicoMaterial.carregarTrilhas());
   const [campos, setCampos] = useState({
     trilhaId: atividade?.trilha_id ?? trilhaInicial ?? 0,
     titulo: atividade?.titulo ?? '',
-    enunciado: atividade?.enunciado ?? '',
     linkEnunciado: atividade?.link_enunciado ?? '',
     prazo: atividade?.prazo ? paraCampoDataHora(atividade.prazo) : '',
   });
@@ -55,6 +250,17 @@ export const FormularioDeAtividade: React.FC<{
         }
       : SEM_REGRAS,
   );
+  const [formato, setFormato] = useState<EscolhaDeFormato>(() => {
+    const atual = atividade ?? FORMATO_INDIVIDUAL;
+    const tipo = tipoDoFormato(atual);
+    return {
+      tipo,
+      // Tamanho sugerido para quem escolher "Grupo" depois
+      minimo: String(tipo === 'grupo' ? atual.grupo_min : 2),
+      maximo: String(tipo === 'grupo' ? atual.grupo_max : 4),
+      quemMonta: atual.grupos_montados_por,
+    };
+  });
   const [salvando, setSalvando] = useState(false);
   const [mensagem, setMensagem] = useState<Mensagem>(null);
 
@@ -72,118 +278,124 @@ export const FormularioDeAtividade: React.FC<{
     e.preventDefault();
     setMensagem(null);
     setSalvando(true);
-    const falha = await servicoAtividades.salvar(
+    const formatoEscolhido = paraFormato(formato);
+    const resultado = await servicoAtividades.salvar(
       {
         trilha_id: campos.trilhaId,
         titulo: campos.titulo,
-        enunciado: campos.enunciado,
         link_enunciado: campos.linkEnunciado,
         // Campo vazio = sem prazo (a entrega fica aberta)
         prazo: campos.prazo ? deCampoDataHora(campos.prazo) : null,
         ...regras,
+        ...formatoEscolhido,
       },
       atividade ? { id: atividade.id } : { turmaId },
     );
-    if (falha) {
+    if ('falha' in resultado) {
       setSalvando(false);
-      return setMensagem({ tipo: 'erro', texto: falha });
+      return setMensagem({ tipo: 'erro', texto: resultado.falha });
     }
-    await aoSalvar(atividade ? 'Atividade atualizada.' : 'Atividade publicada para a turma.');
+    if (atividade) return aoSalvar('Atividade atualizada.');
+    const professorMonta = emGrupo(formatoEscolhido) && formatoEscolhido.grupos_montados_por === 'professor';
+    await aoSalvar('Atividade publicada para a turma.', professorMonta ? resultado.id : undefined);
   };
 
   return (
-    <form onSubmit={salvar} className={espaco.formulario}>
-      <div>
-        <label htmlFor="atividade-trilha" className={classeRotulo}>
-          Trilha
-        </label>
-        <select
-          id="atividade-trilha"
-          value={campos.trilhaId}
-          disabled={salvando}
-          className={classeCampo}
-          onChange={(e) => setCampos((c) => ({ ...c, trilhaId: Number(e.target.value) }))}
-        >
-          {trilhas.map((t) => (
-            <option key={t.id} value={t.id}>
-              {t.nome}
-            </option>
-          ))}
-        </select>
+    // No computador: três colunas da mesma altura (atividade e prazo | formato | entrega).
+    // No celular: um bloco embaixo do outro.
+    <form onSubmit={salvar} className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+      <div className="flex min-w-0 flex-col gap-4">
+        <Bloco titulo="Sobre a atividade" className="flex-1">
+          <div className={espaco.formulario}>
+            <div>
+              <label htmlFor="atividade-trilha" className={classeRotulo}>
+                Trilha
+              </label>
+              <select
+                id="atividade-trilha"
+                value={campos.trilhaId}
+                disabled={salvando}
+                className={campoAlinhado}
+                onChange={(e) => setCampos((c) => ({ ...c, trilhaId: Number(e.target.value) }))}
+              >
+                {trilhas.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.nome}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label htmlFor="atividade-titulo" className={classeRotulo}>
+                Título
+              </label>
+              <input
+                id="atividade-titulo"
+                required
+                maxLength={120}
+                placeholder="Ex: Exercício Módulo 2"
+                value={campos.titulo}
+                disabled={salvando}
+                className={campoAlinhado}
+                onChange={(e) => setCampos((c) => ({ ...c, titulo: e.target.value }))}
+              />
+            </div>
+            <div>
+              <label htmlFor="atividade-link-enunciado" className={classeRotulo}>
+                Link do enunciado (GitBook)
+              </label>
+              <input
+                id="atividade-link-enunciado"
+                required
+                type="url"
+                inputMode="url"
+                maxLength={2000}
+                placeholder="https://favelaware.gitbook.io/favelaware/..."
+                value={campos.linkEnunciado}
+                disabled={salvando}
+                className={campoAlinhado}
+                aria-describedby="atividade-link-enunciado-apoio"
+                onChange={(e) => setCampos((c) => ({ ...c, linkEnunciado: e.target.value }))}
+              />
+              <p id="atividade-link-enunciado-apoio" className={`mt-1 ${texto.apoio}`}>
+                O aluno lê a atividade nesta página do GitBook e entrega aqui no portal.
+              </p>
+            </div>
+          </div>
+        </Bloco>
+        <Bloco titulo="Prazo">
+          <label htmlFor="atividade-prazo" className={classeRotulo}>
+            Data e hora (horário de Brasília, opcional)
+          </label>
+          <input
+            id="atividade-prazo"
+            aria-describedby="atividade-prazo-apoio"
+            type="datetime-local"
+            value={campos.prazo}
+            disabled={salvando}
+            className={campoAlinhado}
+            onChange={(e) => setCampos((c) => ({ ...c, prazo: e.target.value }))}
+          />
+          <p id="atividade-prazo-apoio" className={`mt-1 ${texto.apoio}`}>
+            Sem prazo, o envio fica aberto. Depois do prazo, o envio fecha. Quem receber "Refazer" ainda pode reenviar.
+          </p>
+        </Bloco>
       </div>
-      <div>
-        <label htmlFor="atividade-titulo" className={classeRotulo}>
-          Título
-        </label>
-        <input
-          id="atividade-titulo"
-          required
-          maxLength={120}
-          placeholder="Ex: Exercício Módulo 2"
-          value={campos.titulo}
-          disabled={salvando}
-          className={classeCampo}
-          onChange={(e) => setCampos((c) => ({ ...c, titulo: e.target.value }))}
-        />
-      </div>
-      <div>
-        <label htmlFor="atividade-enunciado" className={classeRotulo}>
-          Enunciado
-        </label>
-        <textarea
-          id="atividade-enunciado"
-          required
-          rows={6}
-          maxLength={10000}
-          value={campos.enunciado}
-          disabled={salvando}
-          placeholder="O que o aluno precisa fazer e entregar"
-          className={classeTextoLongo}
-          onChange={(e) => setCampos((c) => ({ ...c, enunciado: e.target.value }))}
-        />
-      </div>
-      <div>
-        <label htmlFor="atividade-link-enunciado" className={classeRotulo}>
-          Link do enunciado (GitBook)
-        </label>
-        <input
-          id="atividade-link-enunciado"
-          type="url"
-          inputMode="url"
-          maxLength={2000}
-          placeholder="https://favelaware.gitbook.io/favelaware/..."
-          value={campos.linkEnunciado}
-          disabled={salvando}
-          className={classeCampo}
-          aria-describedby="atividade-link-enunciado-apoio"
-          onChange={(e) => setCampos((c) => ({ ...c, linkEnunciado: e.target.value }))}
-        />
-        <p id="atividade-link-enunciado-apoio" className={`mt-1 ${texto.apoio}`}>
-          Opcional. O aluno lê a atividade completa neste link e entrega aqui no portal.
-        </p>
-      </div>
-      <div>
-        <label htmlFor="atividade-prazo" className={classeRotulo}>
-          Prazo (horário de Brasília, opcional)
-        </label>
-        <input
-          id="atividade-prazo"
-          aria-describedby="atividade-prazo-apoio"
-          type="datetime-local"
-          value={campos.prazo}
-          disabled={salvando}
-          className={classeCampo}
-          onChange={(e) => setCampos((c) => ({ ...c, prazo: e.target.value }))}
-        />
-        <p id="atividade-prazo-apoio" className={`mt-1 ${texto.apoio}`}>
-          Sem prazo, o envio fica aberto. Depois do prazo, o envio fecha. Quem receber "Refazer" ainda pode reenviar.
-        </p>
-      </div>
+      <FormatoDaEntrega
+        escolha={formato}
+        aoMudar={setFormato}
+        desabilitado={salvando}
+        travado={(atividade?.tentativas.length ?? 0) > 0}
+      />
       <RegrasDaEntrega regras={regras} aoMudar={setRegras} desabilitado={salvando} />
-      <Aviso mensagem={mensagem} className="" />
-      <Botao type="submit" variante="primario" disabled={salvando}>
-        {salvando ? 'Salvando…' : atividade ? 'Salvar alterações' : 'Publicar atividade'}
-      </Botao>
+      <div className="flex flex-col gap-3 sm:min-h-[3rem] sm:flex-row sm:items-center sm:justify-between lg:col-span-3">
+        <div className="min-w-0 flex-1">
+          <Aviso mensagem={mensagem} className="" />
+        </div>
+        <Botao type="submit" variante="primario" disabled={salvando} className="sm:min-w-[12rem]">
+          {salvando ? 'Salvando…' : atividade ? 'Salvar alterações' : 'Publicar atividade'}
+        </Botao>
+      </div>
     </form>
   );
 };
@@ -236,11 +448,10 @@ const RegrasDaEntrega: React.FC<{
     mudar({ formatos: regras.formatos.includes(f) ? regras.formatos.filter((x) => x !== f) : [...regras.formatos, f] });
 
   return (
-    <fieldset className="rounded-xl border border-gray-200 bg-gray-50/60 p-4">
-      <legend className="px-1 text-sm font-semibold text-gray-900">O que o aluno precisa enviar</legend>
-      <p className={`mb-4 ${texto.apoio}`}>
-        Ligue o que é obrigatório. Sem nada ligado, o aluno escolhe: link, comentário ou arquivo.
-      </p>
+    <Bloco
+      titulo="O que o aluno precisa enviar"
+      descricao="Ligue o que é obrigatório. Sem nada ligado, o aluno escolhe: link, comentário ou arquivo."
+    >
       <div className="space-y-5">
         <Chave
           id="regra-texto"
@@ -260,7 +471,7 @@ const RegrasDaEntrega: React.FC<{
             aoMudar={(v) => mudar({ exige_link: v })}
             desabilitado={desabilitado}
           />
-          <div className="sm:max-w-xs">
+          <div>
             <label htmlFor="regra-tipo-link" className={classeRotulo}>
               Tipo de link aceito
             </label>
@@ -268,7 +479,7 @@ const RegrasDaEntrega: React.FC<{
               id="regra-tipo-link"
               value={regras.tipo_link}
               disabled={desabilitado}
-              className={classeCampo}
+              className={campoAlinhado}
               onChange={(e) => mudar({ tipo_link: e.target.value as TipoLink })}
             >
               {(Object.keys(ROTULO_TIPO_LINK) as TipoLink[]).map((t) => (
@@ -323,7 +534,7 @@ const RegrasDaEntrega: React.FC<{
           </div>
         </div>
       </div>
-    </fieldset>
+    </Bloco>
   );
 };
 

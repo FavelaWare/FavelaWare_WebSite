@@ -3,8 +3,8 @@
  * ATIVIDADES (CRIAÇÃO E CORREÇÃO)
  * ============================================
  *
- * - Professor da turma e gestor criam a atividade (turma + trilha; prazo e link do
- *   enunciado no GitBook são opcionais: sem prazo, a entrega fica aberta).
+ * - Professor da turma e gestor criam a atividade (turma, trilha e o link do enunciado
+ *   no GitBook; o prazo é opcional: sem prazo, a entrega fica aberta).
  * - O aluno entrega com link, texto e/ou arquivo (ver lib/entregas.ts).
  * - O professor responde com feedback, nota (0 a 100) e "Concluída" ou "Refazer";
  *   no "Refazer" o aluno envia de novo (2ª tentativa...).
@@ -17,7 +17,7 @@ import type { RegrasDeEntrega } from './entregas';
 import { servicoSessao } from './sessao';
 import { supabase } from './supabase';
 import { servicoTurmas, type TurmaComEdicao } from './turmas';
-import { linkValido, vazioViraNulo } from '../utils/texto';
+import { linkValido } from '../utils/texto';
 
 export type StatusTentativa = 'aguardando' | 'concluida' | 'refazer';
 
@@ -41,13 +41,38 @@ export interface Tentativa {
   avaliada_por_nome: string | null;
 }
 
-export interface Atividade extends RegrasDeEntrega {
+export type QuemMontaOsGrupos = 'professor' | 'alunos';
+
+/** Tamanho do grupo (individual é 1 e 1; dupla, 2 e 2) e quem distribui os alunos */
+export interface FormatoDaAtividade {
+  grupo_min: number;
+  grupo_max: number;
+  /** Só vale em atividade em grupo */
+  grupos_montados_por: QuemMontaOsGrupos;
+}
+
+export const FORMATO_INDIVIDUAL: FormatoDaAtividade = { grupo_min: 1, grupo_max: 1, grupos_montados_por: 'professor' };
+/** O banco tem o mesmo teto */
+export const MAXIMO_POR_GRUPO = 50;
+
+export const emGrupo = (formato: FormatoDaAtividade) => formato.grupo_max > 1;
+
+/** "Individual", "Em dupla", "Em trio", "Em grupo de 4" ou "Em grupo de 2 a 4" */
+export function rotuloDoFormato({ grupo_min: minimo, grupo_max: maximo }: FormatoDaAtividade): string {
+  if (maximo <= 1) return 'Individual';
+  if (minimo === 2 && maximo === 2) return 'Em dupla';
+  if (minimo === 3 && maximo === 3) return 'Em trio';
+  return minimo === maximo ? `Em grupo de ${maximo}` : `Em grupo de ${minimo} a ${maximo}`;
+}
+
+export interface Atividade extends RegrasDeEntrega, FormatoDaAtividade {
   id: number;
   turma_id: number;
   trilha_id: number;
   titulo: string;
-  enunciado: string;
-  /** Enunciado completo fora do portal (ex.: GitBook); null = só o enunciado daqui */
+  /** Texto guardado no portal (atividades antigas e resumo); as novas só têm o link */
+  enunciado: string | null;
+  /** Enunciado no GitBook; null só nas atividades antigas, escritas no portal */
   link_enunciado: string | null;
   /** null = sem prazo: a atividade não encerra */
   prazo: string | null;
@@ -79,10 +104,9 @@ export interface AtividadesDoAluno {
   atividades: Atividade[];
 }
 
-export interface DadosDaAtividade extends RegrasDeEntrega {
+export interface DadosDaAtividade extends RegrasDeEntrega, FormatoDaAtividade {
   trilha_id: number;
   titulo: string;
-  enunciado: string;
   link_enunciado: string;
   /** ISO; null = sem prazo */
   prazo: string | null;
@@ -90,7 +114,7 @@ export interface DadosDaAtividade extends RegrasDeEntrega {
 
 const COLUNAS_TENTATIVA =
   'id, participante_id, numero, comentario, link, arquivo_caminho, arquivo_nome, arquivo_id, arquivo:arquivos_entrega(nome), enviada_em, status, feedback, nota, avaliada_em, avaliada_por_nome';
-const COLUNAS_ATIVIDADE = `id, turma_id, trilha_id, titulo, enunciado, link_enunciado, prazo, exige_texto, exige_link, tipo_link, exige_arquivo, formatos, trilha:trilhas(nome, ordem), tentativas(${COLUNAS_TENTATIVA})`;
+const COLUNAS_ATIVIDADE = `id, turma_id, trilha_id, titulo, enunciado, link_enunciado, prazo, exige_texto, exige_link, tipo_link, exige_arquivo, formatos, grupo_min, grupo_max, grupos_montados_por, trilha:trilhas(nome, ordem), tentativas(${COLUNAS_TENTATIVA})`;
 
 /** Chaves do cache (ver lib/cache.ts) */
 export const CHAVE_ATIVIDADES_ALUNO = 'atividades:aluno';
@@ -184,25 +208,45 @@ export class ServicoAtividades {
     return { alunos: alunos.data, atividades: arrumar(atividades.data as unknown as Atividade[]) };
   }
 
-  /** Cria (com turma) ou edita (com id). Devolve null se deu certo, ou o texto do erro. */
-  async salvar(dados: DadosDaAtividade, alvo: { turmaId: number } | { id: number }): Promise<string | null> {
+  /** Cria (com turma) ou edita (com id). Devolve o id da atividade, ou o texto da falha. */
+  async salvar(
+    dados: DadosDaAtividade,
+    alvo: { turmaId: number } | { id: number },
+  ): Promise<{ id: number } | { falha: string }> {
     const link = dados.link_enunciado.trim();
-    if (link && !linkValido(link)) return 'O link do enunciado precisa começar com https://';
+    if (!link) return { falha: 'Informe o link do enunciado no GitBook.' };
+    if (!linkValido(link)) return { falha: 'O link do enunciado precisa começar com https://' };
+    const { grupo_min: minimo, grupo_max: maximo } = dados;
+    if (!Number.isInteger(minimo) || !Number.isInteger(maximo) || minimo < 1 || maximo < minimo) {
+      return {
+        falha: 'Confira o tamanho do grupo: o mínimo é pelo menos 1 e o máximo não pode ser menor que o mínimo.',
+      };
+    }
+    if (maximo > MAXIMO_POR_GRUPO) return { falha: `O grupo pode ter até ${MAXIMO_POR_GRUPO} integrantes.` };
     const campos = {
       ...dados,
       titulo: dados.titulo.trim(),
-      enunciado: dados.enunciado.trim(),
-      link_enunciado: vazioViraNulo(link),
+      link_enunciado: link,
     };
-    const { error } =
+    const { data, error } =
       'id' in alvo
-        ? await supabase.from('atividades').update(campos).eq('id', alvo.id)
-        : await supabase.from('atividades').insert({ ...campos, turma_id: alvo.turmaId });
-    if (!error) return null;
+        ? await supabase.from('atividades').update(campos).eq('id', alvo.id).select('id').maybeSingle()
+        : await supabase
+            .from('atividades')
+            .insert({ ...campos, turma_id: alvo.turmaId })
+            .select('id')
+            .maybeSingle();
+    if (!error) {
+      // Sem linha de volta: o banco não deixou esta conta gravar (a regra de acesso filtra em silêncio)
+      return data ? { id: data.id } : { falha: 'Você não pode alterar esta atividade.' };
+    }
     console.error('[atividades] falha ao salvar a atividade', error.code);
-    if (error.code === CODIGO_REGRA_DO_BANCO) return 'O prazo precisa ser depois de agora.';
-    if (error.code === '23514') return 'Confira os campos: título até 120 letras e enunciado preenchido.';
-    return 'Não foi possível salvar a atividade.';
+    // Prazo no passado ou formato trocado depois das entregas: o banco diz qual foi
+    if (error.code === CODIGO_REGRA_DO_BANCO)
+      return { falha: mensagemDaRegraDoBanco(error, 'O prazo precisa ser depois de agora.') };
+    if (error.code === '23514')
+      return { falha: 'Confira os campos: título até 120 letras e link do enunciado preenchido.' };
+    return { falha: 'Não foi possível salvar a atividade.' };
   }
 
   /** Só apaga atividade sem entregas (o banco confere). Devolve null se apagou. */

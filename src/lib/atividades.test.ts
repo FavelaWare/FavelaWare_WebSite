@@ -4,6 +4,8 @@ vi.mock('./supabase', () => import('../testes/supabaseFalso'));
 
 import {
   arrumar,
+  FORMATO_INDIVIDUAL,
+  rotuloDoFormato,
   resumoNaTurma,
   paraCorrigir,
   servicoAtividades,
@@ -46,6 +48,7 @@ const atividade = (prazo: string | null, tentativas: Tentativa[], id = 1): Ativi
   tipo_link: 'qualquer',
   exige_arquivo: false,
   formatos: [],
+  ...FORMATO_INDIVIDUAL,
 });
 
 describe('resumo da atividade na turma', () => {
@@ -85,6 +88,17 @@ describe('situação do aluno', () => {
   });
 });
 
+describe('formato da atividade', () => {
+  it('dá nome a individual, dupla, trio e grupo', () => {
+    const formato = (grupo_min: number, grupo_max: number) => ({ ...FORMATO_INDIVIDUAL, grupo_min, grupo_max });
+    expect(rotuloDoFormato(formato(1, 1))).toBe('Individual');
+    expect(rotuloDoFormato(formato(2, 2))).toBe('Em dupla');
+    expect(rotuloDoFormato(formato(3, 3))).toBe('Em trio');
+    expect(rotuloDoFormato(formato(4, 4))).toBe('Em grupo de 4');
+    expect(rotuloDoFormato(formato(2, 4))).toBe('Em grupo de 2 a 4');
+  });
+});
+
 describe('ordem das atividades', () => {
   it('por prazo, as sem prazo no fim e, no empate, pela ordem de criação', () => {
     const lista = [
@@ -99,24 +113,46 @@ describe('ordem das atividades', () => {
 });
 
 describe('atividade: conferência antes de gravar', () => {
-  const salvar = (link_enunciado: string) =>
+  const salvar = (link_enunciado: string, formato = FORMATO_INDIVIDUAL) =>
     servicoAtividades.salvar(
-      { trilha_id: 1, titulo: 'A', enunciado: 'B', link_enunciado, prazo: null, ...SEM_REGRAS },
+      { trilha_id: 1, titulo: 'A', link_enunciado, prazo: null, ...SEM_REGRAS, ...formato },
       { turmaId: 1 },
     );
+  const LINK = 'https://favelaware.gitbook.io/favelaware/6-html';
+  const grupo = (grupo_min: number, grupo_max: number) => ({ ...FORMATO_INDIVIDUAL, grupo_min, grupo_max });
 
-  it('recusa link do enunciado que não seja https', async () => {
-    const aviso = 'O link do enunciado precisa começar com https://';
-    expect(await salvar('http://favelaware.gitbook.io/x')).toBe(aviso);
-    expect(await salvar('javascript:alert(1)')).toBe(aviso);
-    expect(await salvar('https://com espaço')).toBe(aviso);
+  it('recusa tamanho de grupo que o banco também recusa', async () => {
+    const aviso = {
+      falha: 'Confira o tamanho do grupo: o mínimo é pelo menos 1 e o máximo não pode ser menor que o mínimo.',
+    };
+    expect(await salvar(LINK, grupo(0, 2))).toEqual(aviso);
+    expect(await salvar(LINK, grupo(3, 2))).toEqual(aviso);
+    expect(await salvar(LINK, grupo(2, 2.5))).toEqual(aviso);
+    expect(await salvar(LINK, grupo(2, 51))).toEqual({ falha: 'O grupo pode ter até 50 integrantes.' });
   });
 
-  it('aceita link https ou vazio, sem prazo (chega ao banco, que o falso recusa)', async () => {
+  it('aceita dupla e grupo dentro do limite (chega ao banco, que o falso recusa)', async () => {
+    await expect(salvar(LINK, grupo(2, 2))).rejects.toThrow('Teste não deveria chegar ao banco');
+    await expect(salvar(LINK, grupo(2, 50))).rejects.toThrow('Teste não deveria chegar ao banco');
+  });
+
+  it('recusa link do enunciado que não seja https', async () => {
+    const aviso = { falha: 'O link do enunciado precisa começar com https://' };
+    expect(await salvar('http://favelaware.gitbook.io/x')).toEqual(aviso);
+    expect(await salvar('javascript:alert(1)')).toEqual(aviso);
+    expect(await salvar('https://com espaço')).toEqual(aviso);
+  });
+
+  it('exige o link do enunciado', async () => {
+    const aviso = { falha: 'Informe o link do enunciado no GitBook.' };
+    expect(await salvar('')).toEqual(aviso);
+    expect(await salvar('   ')).toEqual(aviso);
+  });
+
+  it('aceita link https, sem prazo (chega ao banco, que o falso recusa)', async () => {
     await expect(salvar('https://favelaware.gitbook.io/favelaware/6-html')).rejects.toThrow(
       'Teste não deveria chegar ao banco',
     );
-    await expect(salvar('   ')).rejects.toThrow('Teste não deveria chegar ao banco');
   });
 });
 

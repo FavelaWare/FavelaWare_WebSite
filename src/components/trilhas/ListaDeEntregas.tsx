@@ -17,7 +17,11 @@ const ListaDeEntregas: React.FC<{
   aoCorrigir: (aluno: AlunoDaTurma) => void;
 }> = ({ atividade, alunos, aoCorrigir }) => (
   <div className="space-y-4">
-    <p className={`whitespace-pre-wrap break-words rounded-lg bg-gray-50 p-3 ${texto.corpo}`}>{atividade.enunciado}</p>
+    {atividade.enunciado && (
+      <p className={`whitespace-pre-wrap break-words rounded-lg bg-gray-50 p-3 ${texto.corpo}`}>
+        {atividade.enunciado}
+      </p>
+    )}
     {!alunos.length ? (
       <Vazio>Nenhum aluno nesta turma.</Vazio>
     ) : (

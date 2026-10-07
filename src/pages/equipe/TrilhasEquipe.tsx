@@ -7,6 +7,7 @@
  * Atividades, mas aqui com os botões de gestão.
  * - Materiais: adicionar, editar e apagar links (valem para todas as turmas).
  * - Atividades (da turma escolhida no topo): publicar, editar (inclusive o prazo),
+ *   montar os grupos das atividades em grupo,
  *   apagar (só sem entregas) e ver as entregas para corrigir com feedback e nota.
  * - A trilha em si: nova, editar e apagar (trilha com atividades não é apagada).
  *
@@ -24,6 +25,7 @@ import { espaco, foco, superficie, texto } from '../../components/admin/designSy
 import { Corrigir, FormularioDeAtividade } from '../../components/atividades/FormulariosDaEquipe';
 import CartaoDaTrilhaDaEquipe from '../../components/trilhas/CartaoDaTrilhaDaEquipe';
 import FormularioDeTrilhaOuMaterial from '../../components/trilhas/FormularioDeTrilhaOuMaterial';
+import GruposDaAtividade from '../../components/trilhas/GruposDaAtividade';
 import ListaDeEntregas from '../../components/trilhas/ListaDeEntregas';
 import type { AlvoDeApagar, EstadoAtividades, JanelaAberta } from '../../components/trilhas/tipos';
 import { useDadosEmCache } from '../../hooks/useDadosEmCache';
@@ -100,7 +102,8 @@ const TrilhasEquipe: React.FC = () => {
   const idsDosAlunos = new Set(turma.alunos.map((a) => a.id));
 
   // Depois de gravar, busca de novo só o que mudou
-  const recarregar = async (oQue: 'trilhas' | 'atividades', texto: string) => {
+  // `proxima`: janela que abre em seguida (ex.: montar os grupos da atividade recém-criada)
+  const recarregar = async (oQue: 'trilhas' | 'atividades', texto: string, proxima: JanelaAberta | null = null) => {
     setJanela(null);
     try {
       await (oQue === 'trilhas' ? trilhas.recarregar() : daTurma.recarregar());
@@ -108,6 +111,7 @@ const TrilhasEquipe: React.FC = () => {
       console.error('[trilhas] salvou, mas falhou ao atualizar', e);
     }
     setMensagem({ tipo: 'sucesso', texto });
+    setJanela(proxima);
   };
 
   const apagar = async (alvo: AlvoDeApagar) => {
@@ -141,7 +145,7 @@ const TrilhasEquipe: React.FC = () => {
     : undefined;
 
   const atividadeDaJanela =
-    janela && (janela.tipo === 'entregas' || janela.tipo === 'corrigir')
+    janela && (janela.tipo === 'entregas' || janela.tipo === 'corrigir' || janela.tipo === 'grupos')
       ? turma.atividades.find((a) => a.id === janela.atividadeId)
       : undefined;
 
@@ -252,6 +256,7 @@ const TrilhasEquipe: React.FC = () => {
         titulo={janela?.tipo === 'atividade' && janela.atividade ? 'Editar atividade' : 'Nova atividade'}
         aberta={janela?.tipo === 'atividade'}
         onFechar={fechar}
+        ampla
       >
         {janela?.tipo === 'atividade' && turmaId !== null && (
           <FormularioDeAtividade
@@ -259,8 +264,27 @@ const TrilhasEquipe: React.FC = () => {
             turmaId={turmaId}
             atividade={janela.atividade}
             trilhaInicial={janela.trilhaId}
-            aoSalvar={(texto) => recarregar('atividades', texto)}
+            aoSalvar={(texto, montarGruposDe) =>
+              recarregar(
+                'atividades',
+                texto,
+                montarGruposDe === undefined ? null : { tipo: 'grupos', atividadeId: montarGruposDe },
+              )
+            }
           />
+        )}
+      </Janela>
+
+      <Janela
+        titulo={atividadeDaJanela ? `Montar grupos · ${atividadeDaJanela.titulo}` : ''}
+        subtitulo={nomeDaTurma}
+        aberta={janela?.tipo === 'grupos' && atividadeDaJanela !== undefined}
+        onFechar={fechar}
+        ampla
+        focoInicial="fechar"
+      >
+        {janela?.tipo === 'grupos' && atividadeDaJanela && (
+          <GruposDaAtividade key={atividadeDaJanela.id} atividade={atividadeDaJanela} alunos={turma.alunos} />
         )}
       </Janela>
 

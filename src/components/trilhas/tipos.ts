@@ -8,6 +8,7 @@ export type JanelaAberta =
   | { tipo: 'material'; trilhaId: number; material?: MaterialDaTrilha }
   | { tipo: 'atividade'; trilhaId: number; atividade: Atividade | null }
   | { tipo: 'entregas'; atividadeId: number }
+  | { tipo: 'grupos'; atividadeId: number }
   | { tipo: 'corrigir'; atividadeId: number; aluno: AlunoDaTurma };
 
 /** Situação da aba Atividades (turmas e atividades carregam à parte dos materiais) */
