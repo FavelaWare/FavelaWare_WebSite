@@ -134,17 +134,34 @@ begin
   end;
   r := r || E'\n' || case when v_n = 3 then 'ok' else 'FALHOU (' || v_n || ' de 3)' end || ' - professor de outra turma, aluno e parceiro não montam grupos';
 
-  -- Colaborador e gestor montam; o mesmo pedido de novo não duplica
+  -- Colaborador não monta, não inclui e não tira (migration 20261001131000): mexer no
+  -- grupo decide quem vê a nota, e ele não vê entregas
   reset role;
   perform set_config('request.jwt.claims', json_build_object('sub', u_c, 'role', 'authenticated')::text, true);
   set local role authenticated;
-  perform public.definir_grupos(v_prof, jsonb_build_array(jsonb_build_array(pa1, pa2), jsonb_build_array(pa3, pa4)));
+  v_n := 0;
+  begin
+    perform public.definir_grupos(v_prof, jsonb_build_array(jsonb_build_array(pa1, pa2), jsonb_build_array(pa3, pa4)));
+  exception when insufficient_privilege then v_n := v_n + 1;
+  end;
+  begin
+    perform public.incluir_no_grupo(v_prof, pa1, null);
+  exception when insufficient_privilege then v_n := v_n + 1;
+  end;
+  begin
+    perform public.tirar_do_grupo(v_prof, pa1);
+  exception when insufficient_privilege then v_n := v_n + 1;
+  end;
+  r := r || E'\n' || case when v_n = 3 then 'ok' else 'FALHOU (' || v_n || ' de 3)' end || ' - colaborador não monta, não inclui e não tira aluno de grupo';
+
+  -- Gestor monta; o mesmo pedido de novo não duplica
   reset role;
   perform set_config('request.jwt.claims', json_build_object('sub', u_g, 'role', 'authenticated')::text, true);
   set local role authenticated;
   perform public.definir_grupos(v_prof, jsonb_build_array(jsonb_build_array(pa1, pa2), jsonb_build_array(pa3, pa4)));
+  perform public.definir_grupos(v_prof, jsonb_build_array(jsonb_build_array(pa1, pa2), jsonb_build_array(pa3, pa4)));
   select count(distinct grupo_id) || '/' || count(*) into v_txt from public.integrantes_do_grupo where atividade_id = v_prof;
-  r := r || E'\n' || case when v_txt = '2/4' then 'ok' else 'FALHOU (' || v_txt || ')' end || ' - colaborador e gestor montam; repetir o pedido não duplica';
+  r := r || E'\n' || case when v_txt = '2/4' then 'ok' else 'FALHOU (' || v_txt || ')' end || ' - gestor monta; repetir o pedido não duplica';
 
   reset role;
   perform set_config('request.jwt.claims', json_build_object('sub', u_p1, 'role', 'authenticated')::text, true);
