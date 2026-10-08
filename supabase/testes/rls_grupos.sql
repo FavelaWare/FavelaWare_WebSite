@@ -139,18 +139,29 @@ begin
   reset role;
   perform set_config('request.jwt.claims', json_build_object('sub', u_c, 'role', 'authenticated')::text, true);
   set local role authenticated;
+  -- Cada chamada desfaz o que fez se passar (o raise volta ao savepoint do bloco): uma
+  -- permissão errada vira FALHOU no relatório, sem derrubar o resto do teste
   v_n := 0;
   begin
     perform public.definir_grupos(v_prof, jsonb_build_array(jsonb_build_array(pa1, pa2), jsonb_build_array(pa3, pa4)));
-  exception when insufficient_privilege then v_n := v_n + 1;
+    raise exception 'passou' using errcode = 'P0001';
+  exception
+    when insufficient_privilege then v_n := v_n + 1;
+    when others then null;
   end;
   begin
     perform public.incluir_no_grupo(v_prof, pa1, null);
-  exception when insufficient_privilege then v_n := v_n + 1;
+    raise exception 'passou' using errcode = 'P0001';
+  exception
+    when insufficient_privilege then v_n := v_n + 1;
+    when others then null;
   end;
   begin
     perform public.tirar_do_grupo(v_prof, pa1);
-  exception when insufficient_privilege then v_n := v_n + 1;
+    raise exception 'passou' using errcode = 'P0001';
+  exception
+    when insufficient_privilege then v_n := v_n + 1;
+    when others then null;
   end;
   r := r || E'\n' || case when v_n = 3 then 'ok' else 'FALHOU (' || v_n || ' de 3)' end || ' - colaborador não monta, não inclui e não tira aluno de grupo';
 
