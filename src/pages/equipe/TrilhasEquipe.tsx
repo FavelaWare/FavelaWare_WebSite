@@ -7,6 +7,7 @@
  * Atividades, mas aqui com os botões de gestão.
  * - Materiais: adicionar, editar e apagar links (valem para todas as turmas).
  * - Atividades (da turma escolhida no topo): publicar, editar (inclusive o prazo),
+ *   montar os grupos das atividades em grupo,
  *   apagar (só sem entregas) e ver as entregas para corrigir com feedback e nota.
  * - A trilha em si: nova, editar e apagar (trilha com atividades não é apagada).
  *
@@ -24,10 +25,19 @@ import { espaco, foco, superficie, texto } from '../../components/admin/designSy
 import { Corrigir, FormularioDeAtividade } from '../../components/atividades/FormulariosDaEquipe';
 import CartaoDaTrilhaDaEquipe from '../../components/trilhas/CartaoDaTrilhaDaEquipe';
 import FormularioDeTrilhaOuMaterial from '../../components/trilhas/FormularioDeTrilhaOuMaterial';
+import AjustarGrupo from '../../components/trilhas/AjustarGrupo';
+import GruposDaAtividade from '../../components/trilhas/GruposDaAtividade';
 import ListaDeEntregas from '../../components/trilhas/ListaDeEntregas';
-import type { AlvoDeApagar, EstadoAtividades, JanelaAberta } from '../../components/trilhas/tipos';
+import type { AlvoDeApagar, EstadoAtividades, JanelaAberta, QuemEntregou } from '../../components/trilhas/tipos';
 import { useDadosEmCache } from '../../hooks/useDadosEmCache';
-import { chaveAtividadesDaTurma, servicoAtividades, type AtividadesDaTurma } from '../../lib/atividades';
+import {
+  chaveAtividadesDaTurma,
+  linhasDeEntrega,
+  servicoAtividades,
+  type AlunoDaTurma,
+  type Atividade,
+  type AtividadesDaTurma,
+} from '../../lib/atividades';
 import { CHAVE_MATERIAL, servicoMaterial } from '../../lib/material';
 import { servicoSessao } from '../../lib/sessao';
 import { servicoTurmas } from '../../lib/turmas';
@@ -100,7 +110,8 @@ const TrilhasEquipe: React.FC = () => {
   const idsDosAlunos = new Set(turma.alunos.map((a) => a.id));
 
   // Depois de gravar, busca de novo só o que mudou
-  const recarregar = async (oQue: 'trilhas' | 'atividades', texto: string) => {
+  // `proxima`: janela que abre em seguida (ex.: montar os grupos da atividade recém-criada)
+  const recarregar = async (oQue: 'trilhas' | 'atividades', texto: string, proxima: JanelaAberta | null = null) => {
     setJanela(null);
     try {
       await (oQue === 'trilhas' ? trilhas.recarregar() : daTurma.recarregar());
@@ -108,6 +119,8 @@ const TrilhasEquipe: React.FC = () => {
       console.error('[trilhas] salvou, mas falhou ao atualizar', e);
     }
     setMensagem({ tipo: 'sucesso', texto });
+    // Só abre a próxima se houver: não fecha uma janela aberta durante o recarregamento
+    if (proxima) setJanela(proxima);
   };
 
   const apagar = async (alvo: AlvoDeApagar) => {
@@ -141,7 +154,7 @@ const TrilhasEquipe: React.FC = () => {
     : undefined;
 
   const atividadeDaJanela =
-    janela && (janela.tipo === 'entregas' || janela.tipo === 'corrigir')
+    janela && (janela.tipo === 'entregas' || janela.tipo === 'corrigir' || janela.tipo === 'grupos')
       ? turma.atividades.find((a) => a.id === janela.atividadeId)
       : undefined;
 
@@ -252,6 +265,7 @@ const TrilhasEquipe: React.FC = () => {
         titulo={janela?.tipo === 'atividade' && janela.atividade ? 'Editar atividade' : 'Nova atividade'}
         aberta={janela?.tipo === 'atividade'}
         onFechar={fechar}
+        ampla
       >
         {janela?.tipo === 'atividade' && turmaId !== null && (
           <FormularioDeAtividade
@@ -259,7 +273,33 @@ const TrilhasEquipe: React.FC = () => {
             turmaId={turmaId}
             atividade={janela.atividade}
             trilhaInicial={janela.trilhaId}
-            aoSalvar={(texto) => recarregar('atividades', texto)}
+            aoSalvar={(texto, montarGruposDe) =>
+              recarregar(
+                'atividades',
+                texto,
+                montarGruposDe === undefined || !mostrarEntregas
+                  ? null
+                  : { tipo: 'grupos', atividadeId: montarGruposDe },
+              )
+            }
+          />
+        )}
+      </Janela>
+
+      <Janela
+        titulo={atividadeDaJanela ? `Montar grupos · ${atividadeDaJanela.titulo}` : ''}
+        subtitulo={nomeDaTurma}
+        aberta={janela?.tipo === 'grupos' && atividadeDaJanela !== undefined}
+        onFechar={fechar}
+        ampla
+        focoInicial="fechar"
+      >
+        {janela?.tipo === 'grupos' && atividadeDaJanela && (
+          <GruposDaAtividade
+            key={atividadeDaJanela.id}
+            atividade={atividadeDaJanela}
+            alunos={turma.alunos}
+            aoSalvo={daTurma.recarregar}
           />
         )}
       </Janela>
@@ -275,13 +315,13 @@ const TrilhasEquipe: React.FC = () => {
           <ListaDeEntregas
             atividade={atividadeDaJanela}
             alunos={turma.alunos}
-            aoCorrigir={(aluno) => setJanela({ tipo: 'corrigir', atividadeId: atividadeDaJanela.id, aluno })}
+            aoCorrigir={(quem) => setJanela({ tipo: 'corrigir', atividadeId: atividadeDaJanela.id, quem })}
           />
         )}
       </Janela>
 
       <Janela
-        titulo={janela?.tipo === 'corrigir' ? janela.aluno.nome : ''}
+        titulo={janela?.tipo === 'corrigir' ? tituloDaCorrecao(janela.quem, atividadeDaJanela, turma.alunos) : ''}
         subtitulo={atividadeDaJanela ? [atividadeDaJanela.titulo, nomeDaTurma].filter(Boolean).join(' · ') : undefined}
         aberta={janela?.tipo === 'corrigir' && atividadeDaJanela !== undefined}
         onFechar={fechar}
@@ -296,12 +336,34 @@ const TrilhasEquipe: React.FC = () => {
             >
               ← Voltar para as entregas
             </button>
-            <Corrigir atividade={atividadeDaJanela} aluno={janela.aluno} aoSalvar={daTurma.recarregar} />
+            <Corrigir
+              key={'grupoId' in janela.quem ? `g-${janela.quem.grupoId}` : `a-${janela.quem.aluno.id}`}
+              atividade={atividadeDaJanela}
+              quem={janela.quem}
+              alunos={turma.alunos}
+              aoSalvar={daTurma.recarregar}
+            />
+            {/* Atalho: ajustar quem está no grupo sem sair da correção */}
+            {'grupoId' in janela.quem && (
+              <AjustarGrupo
+                atividade={atividadeDaJanela}
+                grupoId={janela.quem.grupoId}
+                alunos={turma.alunos}
+                aoMudar={daTurma.recarregar}
+              />
+            )}
           </div>
         )}
       </Janela>
     </>
   );
 };
+
+/** Título da janela de correção: o nome do aluno, ou os integrantes do grupo */
+function tituloDaCorrecao(quem: QuemEntregou, atividade: Atividade | undefined, alunos: AlunoDaTurma[]): string {
+  if ('aluno' in quem) return quem.aluno.nome;
+  const grupo = atividade && linhasDeEntrega(atividade, alunos).grupos.find((g) => g.id === quem.grupoId);
+  return grupo?.integrantes.length ? `Grupo: ${grupo.integrantes.map((a) => a.nome).join(', ')}` : 'Entrega do grupo';
+}
 
 export default TrilhasEquipe;

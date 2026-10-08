@@ -182,6 +182,17 @@ begin
     r := r || E'\nok - link do enunciado até 2000 caracteres';
   end;
 
+  -- O enunciado mora no GitBook (migration 20261001130000): basta o link; sem link e sem texto, não
+  insert into public.atividades (turma_id, trilha_id, titulo, link_enunciado)
+  values (t1, v_trilha, 'Só o link', 'https://favelaware.gitbook.io/favelaware/6-html') returning id into v_n;
+  r := r || E'\n' || case when v_n is not null then 'ok' else 'FALHOU' end || ' - professor cria atividade só com o link do enunciado, sem texto';
+  begin
+    insert into public.atividades (turma_id, trilha_id, titulo) values (t1, v_trilha, 'Sem nada');
+    r := r || E'\nFALHOU - aceitou atividade sem link e sem texto';
+  exception when check_violation then
+    r := r || E'\nok - atividade precisa do link do enunciado ou do texto';
+  end;
+
   reset role;
   perform set_config('request.jwt.claims', json_build_object('sub', u_a2, 'role', 'authenticated')::text, true);
   set local role authenticated;

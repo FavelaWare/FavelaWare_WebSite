@@ -145,6 +145,10 @@ export class ServicoEntregas {
    * Envia a entrega. Com arquivo, o servidor guarda no Google Drive e registra
    * a entrega de uma vez (Edge Function entregas-drive; se o registro falhar, o
    * arquivo vai para a lixeira). Sem arquivo, registra direto no banco.
+   *
+   * `colegas`: só no 1º envio de atividade em que os alunos montam o grupo. O banco
+   * forma o grupo (quem envia + colegas) e registra a entrega de uma vez
+   * (enviar_em_grupo). Depois disso, o grupo existe e o reenvio segue o caminho normal.
    */
   async enviar(
     atividadeId: number,
@@ -152,6 +156,7 @@ export class ServicoEntregas {
     entrega: Entrega,
     aoMudarEtapa: (etapa: EtapaEnvio) => void,
     regras: RegrasDeEntrega,
+    colegas?: number[],
   ): Promise<ResultadoOperacao> {
     const problema = this.validar(entrega, regras);
     if (problema) return excecaoDeNegocio(problema);
@@ -165,6 +170,7 @@ export class ServicoEntregas {
       form.append('atividade_id', String(atividadeId));
       form.append('comentario', comentario);
       form.append('link', link);
+      if (colegas) form.append('colegas', JSON.stringify(colegas));
       form.append('arquivo', arquivo, arquivo.name);
       const { error } = await supabase.functions.invoke('entregas-drive/enviar', { body: form });
       if (!error) return sucesso();
@@ -173,18 +179,26 @@ export class ServicoEntregas {
     }
 
     aoMudarEtapa('registro');
-    const { error } = await supabase.from('tentativas').insert({
-      atividade_id: atividadeId,
-      participante_id: participanteId,
-      comentario: comentario || null,
-      link: link || null,
-    });
+    const { error } = colegas
+      ? await supabase.rpc('enviar_em_grupo', {
+          p_atividade: atividadeId,
+          p_colegas: colegas,
+          p_comentario: comentario || null,
+          p_link: link || null,
+          p_arquivo_id: null,
+        })
+      : await supabase.from('tentativas').insert({
+          atividade_id: atividadeId,
+          participante_id: participanteId,
+          comentario: comentario || null,
+          link: link || null,
+        });
     if (!error) return sucesso();
     console.error('[entregas] falha ao registrar a entrega', error.code);
     // 22023: regra da atividade recusada pelo banco, com o texto para o aluno
-    return error.code === CODIGO_REGRA_DO_BANCO
-      ? excecaoDeNegocio(error.message)
-      : excecaoDeSistema('Não foi possível registrar a entrega. Tente de novo.');
+    if (error.code === CODIGO_REGRA_DO_BANCO) return excecaoDeNegocio(error.message);
+    if (colegas && error.code === '42501') return excecaoDeNegocio('Você não pode enviar esta atividade.');
+    return excecaoDeSistema('Não foi possível registrar a entrega. Tente de novo.');
   }
 
   /**

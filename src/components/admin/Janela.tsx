@@ -26,6 +26,8 @@ interface Props {
   children: React.ReactNode;
   /** Mais larga no computador (ex.: histórico de uma entrega) */
   larga?: boolean;
+  /** A mais larga: usa quase toda a largura da página (formulário em colunas, sem rolar) */
+  ampla?: boolean;
   /** Faixa fixa logo abaixo do título (não rola junto com o conteúdo) */
   topo?: React.ReactNode;
   /** Rodapé fixo (ex.: botão de enviar sempre à vista) */
@@ -44,6 +46,7 @@ const Janela: React.FC<Props> = ({
   onFechar,
   children,
   larga = false,
+  ampla = false,
   topo,
   rodape,
   focoInicial = 'campo',
@@ -95,7 +98,7 @@ const Janela: React.FC<Props> = ({
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
         className={`relative flex max-h-[94vh] w-full flex-col overflow-hidden rounded-t-3xl bg-white shadow-2xl ring-1 ring-black/5 sm:max-h-[90vh] sm:rounded-2xl ${
-          larga ? 'sm:max-w-4xl' : 'sm:max-w-2xl'
+          ampla ? 'sm:max-w-[min(94vw,100rem)]' : larga ? 'sm:max-w-4xl' : 'sm:max-w-2xl'
         }`}
       >
         {/* Faixa da marca */}

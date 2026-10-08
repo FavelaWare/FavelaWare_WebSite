@@ -26,8 +26,9 @@ import {
   servicoAtividades,
   ROTULO_SITUACAO,
   situacaoDoAluno,
-  tentativasDe,
+  tentativasDoAluno,
   type Atividade,
+  type GrupoDoAluno,
 } from '../../lib/atividades';
 import { useDadosEmCache } from '../../hooks/useDadosEmCache';
 import { CHAVE_MATERIAL, dominioDoLink, servicoMaterial, type TrilhaDoPortal } from '../../lib/material';
@@ -77,6 +78,7 @@ const TrilhasAluno: React.FC = () => {
             trilha={trilha}
             atividades={atividadesDa(trilha.id)}
             participanteId={participanteId}
+            grupos={doAluno.grupos}
             aoAbrir={setAbertaId}
           />
         ))}
@@ -87,6 +89,7 @@ const TrilhasAluno: React.FC = () => {
           key={aberta.id}
           atividade={aberta}
           participanteId={participanteId}
+          grupos={doAluno.grupos}
           demonstracao={doAluno.visualizacao}
           aoEnviar={atividades.recarregar}
           onFechar={fechar}
@@ -103,18 +106,20 @@ interface PropsCartao {
   trilha: TrilhaDoPortal;
   atividades: Atividade[];
   participanteId: number;
+  grupos: GrupoDoAluno[];
   aoAbrir: (atividadeId: number) => void;
 }
 
-const CartaoDaTrilha: React.FC<PropsCartao> = ({ trilha, atividades, participanteId, aoAbrir }) => {
+const CartaoDaTrilha: React.FC<PropsCartao> = ({ trilha, atividades, participanteId, grupos, aoAbrir }) => {
   // Trilha sem material, mas com atividade, já abre nas atividades
   const [aba, setAba] = useState<Aba>(
     trilha.materiais.length === 0 && atividades.length > 0 ? 'atividades' : 'materiais',
   );
 
-  // Quantas o aluno ainda pode entregar (pendente ou refazer): ponto de alerta na aba
+  // Quantas o aluno ainda pode entregar (pendente ou refazer): ponto de alerta na aba.
+  // Em grupo vale a entrega do grupo (sem grupo, continua pendente)
   const paraEntregar = atividades.filter((a) =>
-    podeEnviar(situacaoDoAluno(tentativasDe(a, participanteId), a.prazo)),
+    podeEnviar(situacaoDoAluno(tentativasDoAluno(a, participanteId, grupos), a.prazo)),
   ).length;
 
   return (
@@ -136,7 +141,14 @@ const CartaoDaTrilha: React.FC<PropsCartao> = ({ trilha, atividades, participant
             rotulo: 'Atividades',
             total: atividades.length,
             alerta: paraEntregar > 0 ? `${paraEntregar} para entregar` : undefined,
-            painel: <ListaDeAtividades atividades={atividades} participanteId={participanteId} aoAbrir={aoAbrir} />,
+            painel: (
+              <ListaDeAtividades
+                atividades={atividades}
+                participanteId={participanteId}
+                grupos={grupos}
+                aoAbrir={aoAbrir}
+              />
+            ),
           },
         ]}
       />
@@ -173,14 +185,15 @@ const ListaDeMateriais: React.FC<{ trilha: TrilhaDoPortal }> = ({ trilha }) =>
 const ListaDeAtividades: React.FC<{
   atividades: Atividade[];
   participanteId: number;
+  grupos: GrupoDoAluno[];
   aoAbrir: (id: number) => void;
-}> = ({ atividades, participanteId, aoAbrir }) =>
+}> = ({ atividades, participanteId, grupos, aoAbrir }) =>
   atividades.length === 0 ? (
     <p className={`py-2 ${texto.apoio}`}>Nenhuma atividade nesta trilha por enquanto.</p>
   ) : (
     <ul className="-my-1 divide-y divide-gray-100">
       {atividades.map((a) => {
-        const tentativas = tentativasDe(a, participanteId);
+        const tentativas = tentativasDoAluno(a, participanteId, grupos);
         const situacao = situacaoDoAluno(tentativas, a.prazo);
         const ultima = tentativas[tentativas.length - 1];
         return (
