@@ -186,7 +186,7 @@ const Moldura: React.FC<Props> = ({ itens, subtitulo, acoesTopo, children }) => 
             <IconeMenu />
           </button>
 
-          <h1 className="truncate text-lg font-semibold">{paginaAtual}</h1>
+          <h1 className="min-w-0 truncate text-sm sm:text-lg font-semibold">{paginaAtual}</h1>
 
           <div className="ml-auto flex items-center gap-2 sm:gap-4">
             {acoesTopo}
