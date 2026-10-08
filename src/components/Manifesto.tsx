@@ -212,7 +212,7 @@ const Manifesto: React.FC = () => {
             initial="initial"
             whileInView="animate"
             viewport={{ once: true }}
-            className="text-4xl md:text-6xl font-black leading-tight"
+            className="text-3xl sm:text-4xl md:text-6xl font-black leading-tight"
           >
             {lema.map(({ palavra, cor }, indice) => (
               <motion.span key={palavra} variants={surgirDeBaixo} className={`block ${cor}`}>
