@@ -86,6 +86,14 @@ jobs:
         with:
           node-version: 22
 
-      # Reprova vulnerabilidade alta ou crítica em qualquer dependência.
+      # Reprova vulnerabilidade alta ou crítica nas dependências que vão para o site
+      # publicado. As de desenvolvimento ficam de fora deste passo: os alertas altos que
+      # sobram nelas vêm do Tailwind 3 (braces, micromatch, fast-glob, chokidar),
+      # só somem com a troca para o Tailwind 4 e rodam apenas no build, longe do navegador.
       - name: npm audit
-        run: npm audit --audit-level=high
+        run: npm audit --omit=dev --audit-level=high
+
+      # Nas de desenvolvimento, que rodam no CI, só bloqueia o que é crítico (inclui
+      # pacote malicioso): o alerta alto do Tailwind 3 não trava, um ataque sim.
+      - name: npm audit (todas, só crítico)
+        run: npm audit --audit-level=critical

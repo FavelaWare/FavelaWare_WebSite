@@ -213,7 +213,7 @@ flowchart LR
 | --- | --- |
 | `validate-merge-source` | `main` só aceita `release/*` ou `hotfix/*`; título do PR em Conventional Commits |
 | `ci` | gitleaks no histórico, ESLint, TypeScript, Prettier, testes, tipos das Edge Functions e build |
-| `Dependency audit` | reprova vulnerabilidade alta ou crítica |
+| `Dependency audit` | reprova vulnerabilidade alta ou crítica nas dependências de produção, e crítica em qualquer uma |
 | `versionamento` | bump da versão no PR de release e tag + release no merge |
 | `back-merge-main-develop` | devolve a `main` para a `develop` depois de todo merge |
 | Husky | `pre-commit` (lint-staged), `commit-msg` (commitlint), `pre-push` (nome da branch) |
