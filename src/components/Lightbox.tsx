@@ -15,7 +15,7 @@
  * - AnimatePresence: anima a saída de um elemento que some da tela
  */
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export interface FotoLightbox {
@@ -31,6 +31,8 @@ interface LightboxProps {
 const Lightbox: React.FC<LightboxProps> = ({ foto, aoFechar }) => {
   const botaoFecharRef = useRef<HTMLButtonElement>(null);
   const focoAnteriorRef = useRef<HTMLElement | null>(null);
+  // Endereço da última foto que não carregou: vale só para ela, a próxima tenta de novo
+  const [enderecoQueFalhou, setEnderecoQueFalhou] = useState<string | null>(null);
 
   // Foco do teclado: ao abrir vai para o botão Fechar; ao fechar volta para
   // quem abriu (a miniatura), se ela ainda estiver na página
@@ -103,7 +105,19 @@ const Lightbox: React.FC<LightboxProps> = ({ foto, aoFechar }) => {
             onClick={(e) => e.stopPropagation()}
             className="max-w-5xl w-full"
           >
-            <img src={foto.src} alt={foto.legenda} className="w-full max-h-[80vh] object-contain rounded-xl" />
+            {enderecoQueFalhou === foto.src ? (
+              // Foto do Drive fora do ar ou sem compartilhamento: aviso no lugar do ícone quebrado
+              <p className="text-center text-white/80 py-24">Não foi possível carregar esta foto agora.</p>
+            ) : (
+              // no-referrer: a foto pode vir do Google Drive (ver src/data/galeria.ts)
+              <img
+                src={foto.src}
+                alt={foto.legenda}
+                referrerPolicy="no-referrer"
+                onError={() => setEnderecoQueFalhou(foto.src)}
+                className="w-full max-h-[80vh] object-contain rounded-xl"
+              />
+            )}
             <figcaption className="text-center text-white/90 font-medium mt-4">{foto.legenda}</figcaption>
           </motion.figure>
         </motion.div>

@@ -44,7 +44,7 @@ flowchart LR
 
 O FavelaWare forma jovens de 15 a 24 anos vindos de comunidades de Belo Horizonte/MG em lógica,
 low code, back end e front end, com desenvolvimento pessoal e trabalho em equipe. Iniciativa da
-Mundiale, do Ecossistema Ânima Educação (UNA Cristiano Machado) e das Obras Pavonianas com a Rede
+Mundiale, do Ecossistema Ânima Educação (UNA Centerminas) e das Obras Pavonianas com a Rede
 Transformar.
 
 Um repositório, duas superfícies: o **site público**, que conta a história das edições, e o
@@ -213,7 +213,7 @@ flowchart LR
 | --- | --- |
 | `validate-merge-source` | `main` só aceita `release/*` ou `hotfix/*`; título do PR em Conventional Commits |
 | `ci` | gitleaks no histórico, ESLint, TypeScript, Prettier, testes, tipos das Edge Functions e build |
-| `Dependency audit` | reprova vulnerabilidade alta ou crítica |
+| `Dependency audit` | reprova vulnerabilidade alta ou crítica nas dependências de produção, e crítica em qualquer uma |
 | `versionamento` | bump da versão no PR de release e tag + release no merge |
 | `back-merge-main-develop` | devolve a `main` para a `develop` depois de todo merge |
 | Husky | `pre-commit` (lint-staged), `commit-msg` (commitlint), `pre-push` (nome da branch) |
@@ -252,4 +252,4 @@ Branch a partir de `develop`, PR para `develop` com título em Conventional Comm
 Release por `release/vX.Y.Z` com PR para `main`. Regras de código em
 [`docs/boas-praticas.md`](docs/boas-praticas.md).
 
-Contato: contato@favelaware.com · Belo Horizonte/MG
+Contato: favelaware@gmail.com · Belo Horizonte/MG

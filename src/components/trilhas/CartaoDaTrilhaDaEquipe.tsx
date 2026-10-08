@@ -8,7 +8,7 @@ import AbasDoCartao from '../admin/AbasDoCartao';
 import { IconeLinkExterno } from '../admin/Icones';
 import { Botao, Cartao } from '../admin/Ui';
 import { foco, selo, texto } from '../admin/designSystem';
-import { paraCorrigir, resumoNaTurma, type Atividade } from '../../lib/atividades';
+import { emGrupo, paraCorrigir, resumoNaTurma, rotuloDoFormato, type Atividade } from '../../lib/atividades';
 import { resumoDasRegras } from '../../lib/entregas';
 import { dominioDoLink, type TrilhaDoPortal } from '../../lib/material';
 import { formatarDataHora } from '../../utils/datas';
@@ -114,13 +114,28 @@ const CartaoDaTrilhaDaEquipe: React.FC<PropsCartao> = ({
                 <li key={a.id} className="py-3">
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <div className="min-w-0 flex-1">
-                      <p className={texto.destaque}>{a.titulo}</p>
+                      <p className={`flex flex-wrap items-center gap-2 ${texto.destaque}`}>
+                        {a.titulo}
+                        {emGrupo(a) && <span className={`${selo.base} ${selo.marca}`}>{rotuloDoFormato(a)}</span>}
+                      </p>
                       <p className={texto.apoio}>
-                        Prazo: {formatarDataHora(a.prazo)}
+                        {a.prazo ? `Prazo: ${formatarDataHora(a.prazo)}` : 'Sem prazo'}
                         {encerrada ? ' (encerrado)' : ''}
                         {mostrarEntregas && ` · ${entregaram} de ${totalDeAlunos} entregaram`}
                       </p>
                       {resumoDasRegras(a) && <p className={`mt-0.5 ${texto.apoio}`}>Exige: {resumoDasRegras(a)}</p>}
+                      {a.link_enunciado && (
+                        <a
+                          href={a.link_enunciado}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className={`mt-0.5 inline-flex items-center gap-1 rounded text-sm text-favela-green-700 hover:underline ${foco}`}
+                        >
+                          Enunciado no GitBook
+                          <IconeLinkExterno className="h-3.5 w-3.5" />
+                          <span className="sr-only">(abre em nova aba)</span>
+                        </a>
+                      )}
                     </div>
                     {mostrarEntregas && aguardando > 0 && (
                       <span className={`${selo.base} ${selo.informacao}`}>{aguardando} para corrigir</span>
@@ -134,6 +149,12 @@ const CartaoDaTrilhaDaEquipe: React.FC<PropsCartao> = ({
                         onClick={() => aoAbrir({ tipo: 'entregas', atividadeId: a.id })}
                       >
                         Entregas
+                      </Botao>
+                    )}
+                    {/* Montar grupos pede a lista de alunos, que só quem vê as entregas tem */}
+                    {mostrarEntregas && emGrupo(a) && a.grupos_montados_por === 'professor' && (
+                      <Botao tamanho="pequeno" onClick={() => aoAbrir({ tipo: 'grupos', atividadeId: a.id })}>
+                        Montar grupos
                       </Botao>
                     )}
                     <Botao

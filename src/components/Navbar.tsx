@@ -63,7 +63,6 @@ const Navbar = () => {
     { name: 'TURMAS', href: '/turmas', type: 'route' },
     { name: 'GALERIA', href: '/galeria', type: 'route' },
     { name: 'RECONHECIMENTOS', href: '/reconhecimentos', type: 'route' },
-    { name: 'CONTATO', href: '/contato', type: 'route' },
   ];
 
   return (
@@ -212,7 +211,7 @@ const Navbar = () => {
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
-            className="xl:hidden bg-[#2d2a5f]/95 backdrop-blur-lg border-t border-white/10"
+            className="xl:hidden bg-[#2d2a5f]/95 backdrop-blur-lg border-t border-white/10 overflow-y-auto max-h-[calc(100dvh-5rem)]"
           >
             <div className="px-4 py-6">
               {menuItems.map((item, index) =>

@@ -11,7 +11,7 @@ declare
   u_p1 uuid := gen_random_uuid(); u_p2 uuid := gen_random_uuid(); u_g uuid := gen_random_uuid();
   t1 bigint; t2 bigint; e1 bigint; e2 bigint;
   pa1 bigint; pa2 bigint; pb1 bigint;
-  v_trilha bigint; v_ativ bigint; v_ativ_vencida bigint; v_ativ_t2 bigint;
+  v_trilha bigint; v_ativ bigint; v_ativ_vencida bigint; v_ativ_t2 bigint; v_sem_prazo bigint;
   v_tent bigint;
   v_arq1 uuid; v_arq2 uuid; v_desc uuid;
   v_regras bigint; v_pdf uuid; v_png uuid;
@@ -154,6 +154,70 @@ begin
   exception when invalid_parameter_value then
     r := r || E'\nok - recusa entrega depois do prazo';
   end;
+
+  -- ===== Sem prazo e link do enunciado (migration 20261001126000) =====
+  reset role;
+  perform set_config('request.jwt.claims', json_build_object('sub', u_p1, 'role', 'authenticated')::text, true);
+  set local role authenticated;
+  insert into public.atividades (turma_id, trilha_id, titulo, enunciado, link_enunciado)
+  values (t1, v_trilha, 'Sem prazo', 'Leia no GitBook', 'https://favelaware.gitbook.io/favelaware/6-html')
+  returning id into v_sem_prazo;
+  r := r || E'\n' || case when v_sem_prazo is not null then 'ok' else 'FALHOU' end || ' - professor cria atividade sem prazo e com link do enunciado';
+  begin
+    insert into public.atividades (turma_id, trilha_id, titulo, enunciado, link_enunciado) values (t1, v_trilha, 'x', 'x', 'http://favelaware.gitbook.io/x');
+    r := r || E'\nFALHOU - aceitou link do enunciado http';
+  exception when check_violation then
+    r := r || E'\nok - link do enunciado só https';
+  end;
+  begin
+    insert into public.atividades (turma_id, trilha_id, titulo, enunciado, link_enunciado) values (t1, v_trilha, 'x', 'x', 'javascript:alert(1)');
+    r := r || E'\nFALHOU - aceitou link do enunciado javascript:';
+  exception when check_violation then
+    r := r || E'\nok - link do enunciado recusa javascript:';
+  end;
+  begin
+    insert into public.atividades (turma_id, trilha_id, titulo, enunciado, link_enunciado) values (t1, v_trilha, 'x', 'x', 'https://' || repeat('a', 2000));
+    r := r || E'\nFALHOU - aceitou link do enunciado com mais de 2000 caracteres';
+  exception when check_violation then
+    r := r || E'\nok - link do enunciado até 2000 caracteres';
+  end;
+
+  -- O enunciado mora no GitBook (migration 20261001130000): basta o link; sem link e sem texto, não
+  insert into public.atividades (turma_id, trilha_id, titulo, link_enunciado)
+  values (t1, v_trilha, 'Só o link', 'https://favelaware.gitbook.io/favelaware/6-html') returning id into v_n;
+  r := r || E'\n' || case when v_n is not null then 'ok' else 'FALHOU' end || ' - professor cria atividade só com o link do enunciado, sem texto';
+  begin
+    insert into public.atividades (turma_id, trilha_id, titulo) values (t1, v_trilha, 'Sem nada');
+    r := r || E'\nFALHOU - aceitou atividade sem link e sem texto';
+  exception when check_violation then
+    r := r || E'\nok - atividade precisa do link do enunciado ou do texto';
+  end;
+
+  reset role;
+  perform set_config('request.jwt.claims', json_build_object('sub', u_a2, 'role', 'authenticated')::text, true);
+  set local role authenticated;
+  select participante_id into v_n from public.reservar_arquivo(v_sem_prazo, 's.pdf', 'application/pdf', 100);
+  r := r || E'\n' || case when v_n = pa2 then 'ok' else 'FALHOU' end || ' - aluno reserva arquivo em atividade sem prazo';
+  insert into public.tentativas (atividade_id, participante_id, comentario) values (v_sem_prazo, pa2, 'feito')
+  returning numero into v_num;
+  r := r || E'\n' || case when v_num = 1 then 'ok' else 'FALHOU' end || ' - aluno entrega atividade sem prazo';
+  update public.atividades set link_enunciado = 'https://exemplo.invalid/outro' where id = v_sem_prazo;
+  get diagnostics v_n = row_count;
+  r := r || E'\n' || case when v_n = 0 then 'ok' else 'FALHOU' end || ' - aluno não altera o link do enunciado';
+
+  -- Tirar o prazo de uma atividade vencida reabre o 1º envio
+  reset role;
+  update public.atividades set prazo = null where id = v_ativ_vencida;
+  perform set_config('request.jwt.claims', json_build_object('sub', u_a2, 'role', 'authenticated')::text, true);
+  set local role authenticated;
+  insert into public.tentativas (atividade_id, participante_id, comentario) values (v_ativ_vencida, pa2, 'agora pode')
+  returning numero into v_num;
+  r := r || E'\n' || case when v_num = 1 then 'ok' else 'FALHOU' end || ' - sem prazo, a atividade que venceu reabre o 1º envio';
+  reset role;
+  update public.atividades set prazo = now() - interval '1 hour' where id = v_ativ_vencida;
+  delete from public.tentativas where atividade_id = v_ativ_vencida;
+  perform set_config('request.jwt.claims', json_build_object('sub', u_a1, 'role', 'authenticated')::text, true);
+  set local role authenticated;
 
   -- ===== IDOR entre alunos =====
   reset role;

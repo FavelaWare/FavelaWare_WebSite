@@ -5,6 +5,33 @@ dos commits (Conventional Commits) ou da label `version:*` no PR de release.
 
 Enquanto o site está em desenvolvimento, as versões ficam em 0.x (pré-lançamento). A 1.0.0 é o lançamento.
 
+## [0.5.0] - 2026-10-08
+
+### Adicionado
+
+- Atividades em dupla, trio e grupo. No cadastro, o professor escolhe o formato, o mínimo e o máximo de integrantes e quem monta os grupos. Um integrante envia, o instrutor corrige uma vez, e a entrega, o feedback e a nota valem para todos do grupo. Atividade individual continua como era.
+- O professor monta os grupos à mão ou por sorteio, respeitando o mínimo e o máximo. Grupo que já entregou fica travado. Na correção dá para tirar ou incluir integrante.
+- Quando os alunos montam, quem envia escolhe os colegas da turma que ainda estão sem grupo. Quando o professor monta, o aluno vê o próprio grupo, e quem está sem grupo é orientado a falar com o instrutor.
+- A lista de entregas mostra uma linha por grupo, com quem enviou, e os alunos sem grupo. Os contadores contam a entrega do grupo.
+- Formulário de atividade em blocos: Sobre a atividade, Prazo, Formato e O que o aluno precisa enviar.
+- O enunciado da atividade fica no GitBook: a atividade nova pede o link e o texto no portal ficou opcional. As atividades do GitBook da Edição 4 ganharam a entrega exigida e o formato.
+- Links do guia do GitBook e das atividades nas trilhas do dashboard. A atividade aceita prazo opcional.
+- Home com camiseta 3D, faixa de prêmios e prévia da galeria em carrossel.
+- Galeria em carrossel por edição e por evento, com as fotos da 3ª edição.
+- Os contatos das Obras Pavonianas foram para o rodapé, e a página Contato saiu do site.
+- Regras da gamificação documentadas.
+
+### Corrigido
+
+- Layout no celular: título do Manifesto e de Idealizadores, rolagem do menu e título da página na área restrita.
+- O parceiro UNA Cristiano Machado passou a se chamar UNA Centerminas, com a logo nova.
+- Rodapé sem a variante clara que sobrava, e emojis decorativos fora do leitor de tela.
+
+### Segurança
+
+- O colaborador não monta nem ajusta grupos, porque mexer no grupo decide quem vê a nota.
+- O audit de dependências bloqueia vulnerabilidade alta nas dependências de produção e crítica em qualquer uma.
+
 ## [0.4.0] - 2026-09-25
 
 ### Adicionado

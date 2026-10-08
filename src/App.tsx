@@ -40,7 +40,6 @@ const ComoFazemos = lazy(() => import('./pages/ComoFazemos')); // Trilhas de ens
 const Sobre = lazy(() => import('./pages/Sobre')); // Sobre o projeto
 const HallDaFama = lazy(() => import('./pages/HallDaFama')); // Equipes anteriores
 const Reconhecimentos = lazy(() => import('./pages/Reconhecimentos')); // Prêmios
-const Contato = lazy(() => import('./pages/Contato')); // Contato
 const Login = lazy(() => import('./pages/Login')); // Login (traz o Supabase)
 const Turmas = lazy(() => import('./pages/Turmas')); // Lista de turmas
 const TurmaDetalhe = lazy(() => import('./pages/TurmaDetalhe')); // Alunos de uma turma (/turmas/:slug)
@@ -49,6 +48,8 @@ const DefinirSenha = lazy(() => import('./pages/DefinirSenha')); // Destino do c
 const PrimeiroAcesso = lazy(() => import('./pages/PrimeiroAcesso')); // Aluno troca a senha padrão
 const DadosDoInstrutor = lazy(() => import('./pages/DadosDoInstrutor')); // Dados do RPA, logo após o login
 const Perfil = lazy(() => import('./pages/Perfil')); // Meu perfil (foto na barra superior)
+// Prévia com dados fictícios: fora do build de produção (import.meta.env.DEV é falso lá)
+const PreviaDeGrupos = import.meta.env.DEV ? lazy(() => import('./pages/previa/PreviaDeGrupos')) : null;
 
 // Área administrativa (/dashboard): carregada sob demanda, porque traz a biblioteca
 // de gráficos e só interessa a quem faz login como gestor
@@ -101,7 +102,6 @@ const preCarregarSitePublico = () => {
     () => import('./pages/Sobre'),
     () => import('./pages/HallDaFama'),
     () => import('./pages/Reconhecimentos'),
-    () => import('./pages/Contato'),
     () => import('./pages/Turmas'),
     () => import('./pages/TurmaDetalhe'),
     () => import('./pages/Galeria'),
@@ -163,8 +163,9 @@ const App: React.FC = () => {
               {/* Rota da página Reconhecimentos (/reconhecimentos) */}
               <Route path="/reconhecimentos" element={<Reconhecimentos />} />
 
-              {/* Rota da página Contato (/contato) */}
-              <Route path="/contato" element={<Contato />} />
+              {/* Contato saiu do site: os dados ficam no rodapé. O 301 de verdade
+                  (para o Google) está no public/.htaccess; aqui é para o npm run dev */}
+              <Route path="/contato" element={<Navigate to="/" replace />} />
 
               {/* Rota da página Login (/login) - tela sem navbar e sem rodapé */}
               <Route path="/login" element={<Login />} />
@@ -263,6 +264,9 @@ const App: React.FC = () => {
 
               {/* Link do convite do professor: ele cria a senha aqui */}
               <Route path="/definir-senha" element={<DefinirSenha />} />
+
+              {/* Prévia de tela em construção, com dados fictícios: só em `npm run dev` */}
+              {PreviaDeGrupos && <Route path="/previa/grupos" element={<PreviaDeGrupos />} />}
             </Routes>
           </Suspense>
         </LimiteDeErro>

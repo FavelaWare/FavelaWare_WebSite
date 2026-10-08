@@ -9,12 +9,18 @@ export const consultaFalha = { ativa: false };
 
 export const removerDoStorage = vi.fn(async () => ({ error: null }));
 
+/** Funções do banco: o teste define a resposta com mockResolvedValueOnce */
+export const chamarFuncao = vi.fn(async (_nome: string, _parametros?: unknown): Promise<unknown> => {
+  throw new Error('Teste não deveria chegar ao banco');
+});
+
 export const supabase = {
   auth: {
     onAuthStateChange: () => ({ data: { subscription: { unsubscribe() {} } } }),
     getSession: async () => ({ data: { session: null } }),
   },
   storage: { from: () => ({ remove: removerDoStorage }) },
+  rpc: chamarFuncao,
   from: () => {
     if (!consultaFalha.ativa) throw new Error('Teste não deveria chegar ao banco');
     // Consulta encadeada (select/eq/order/limit) que termina com erro do banco

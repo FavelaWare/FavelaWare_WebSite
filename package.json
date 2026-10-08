@@ -1,7 +1,7 @@
 {
   "name": "favela-ware",
   "private": true,
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Site oficial e portal (gestor, instrutor e aluno) do FavelaWare, formação de jovens programadores das comunidades de Belo Horizonte.",
   "type": "module",
   "engines": {
@@ -36,7 +36,8 @@
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-router-dom": "^7.9.6",
-    "recharts": "^3.10.1"
+    "recharts": "^3.10.1",
+    "three": "0.186.1"
   },
   "devDependencies": {
     "@commitlint/cli": "^20.5.3",
@@ -44,6 +45,7 @@
     "@eslint/js": "^9.39.1",
     "@types/react": "^19.2.5",
     "@types/react-dom": "^19.2.3",
+    "@types/three": "0.186.0",
     "@vitejs/plugin-react": "^5.1.0",
     "autoprefixer": "^10.4.22",
     "eslint": "^9.39.1",
