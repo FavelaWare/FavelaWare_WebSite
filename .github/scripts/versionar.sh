@@ -2,7 +2,7 @@
 # Calcula e aplica a proxima versao semantica em package.json a partir dos
 # commits acumulados desde a ultima tag de producao.
 #
-# Padrao da organizacao (mesmo script dos repositorios Elkys).
+# Padrao da organizacao.
 #
 # Prioridade de decisao:
 #   1. Label version:major|minor|patch no PR desta branch para a main.

@@ -47,3 +47,6 @@ __pycache__/
 
 # Imagens soltas na raiz (prints de planilha, artes originais): não vão para o repositório
 /*.png
+
+# Pasta de ferramenta (duplica .claude/skills); a fonte única é .claude/
+.agents/
