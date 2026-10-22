@@ -15,18 +15,21 @@ import RotaProtegida from '../../components/RotaProtegida';
 import Moldura, { TransicaoDaArea } from '../../components/admin/Moldura';
 import type { ItemMenu } from '../../components/admin/MenuLateral';
 import { IconeVisaoGeral } from '../../components/admin/Icones';
-import { ITEM_BANCA } from '../../components/admin/itensDeMenu';
+import { ITEM_BANCA, ITENS_FAVELAB } from '../../components/admin/itensDeMenu';
 import { servicoSessao } from '../../lib/sessao';
 
 const AreaDaBanca: React.FC = () => {
   const pagina = useOutlet();
   // Quem é da equipe e está na banca volta para a própria área por aqui
   const [voltar, setVoltar] = useState<ItemMenu | null>(null);
+  // Parceiro não entra no Favelab: o item só aparece para os outros papéis
+  const [comFavelab, setComFavelab] = useState(false);
   useEffect(() => {
     servicoSessao
       .contaLogada()
       .then((l) => {
         const area = l ? servicoSessao.destinoDoPerfil(l.perfil) : null;
+        setComFavelab(!!l?.perfil.papel && l.perfil.papel !== 'parceiro');
         if (area && area !== '/banca')
           setVoltar({ caminho: area, rotulo: 'Voltar para a minha área', Icone: IconeVisaoGeral });
       })
@@ -34,7 +37,10 @@ const AreaDaBanca: React.FC = () => {
   }, []);
 
   return (
-    <Moldura itens={voltar ? [ITEM_BANCA, voltar] : [ITEM_BANCA]} subtitulo="Banca avaliadora">
+    <Moldura
+      itens={[ITEM_BANCA, ...(comFavelab ? ITENS_FAVELAB : []), ...(voltar ? [voltar] : [])]}
+      subtitulo="Banca avaliadora"
+    >
       <TransicaoDaArea carregando={false} pronta texto="Abrindo a avaliação" pagina={pagina} />
     </Moldura>
   );

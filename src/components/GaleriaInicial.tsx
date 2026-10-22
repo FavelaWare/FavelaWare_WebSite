@@ -61,7 +61,7 @@ const GaleriaInicial: React.FC = () => {
             Galeria
           </h2>
           <p className="text-gray-600 text-lg max-w-2xl mx-auto">
-            Momentos mais recentes da {edicaoMaisRecente.titulo} do{' '}
+            Momentos da {edicaoMaisRecente.titulo} do{' '}
             <span className="font-bold text-favela-green-500">FavelaWare</span>
           </p>
         </motion.div>

@@ -19,7 +19,7 @@ import { useCarregamentoCompleto } from '../../components/admin/Carregamento';
 import type { ItemMenu } from '../../components/admin/MenuLateral';
 import { IconeAvaliacao, IconeChamada, IconeMaterial, IconePonto } from '../../components/admin/Icones';
 import { CHAVE_AVALIACOES_PENDENTES, EVENTO_AVALIACAO_SALVA, servicoAvaliacoes } from '../../lib/avaliacoes';
-import { ITEM_BANCA } from '../../components/admin/itensDeMenu';
+import { ITEM_BANCA, ITENS_FAVELAB } from '../../components/admin/itensDeMenu';
 import { servicoCache } from '../../lib/cache';
 import { CHAVE_MATERIAL, servicoMaterial } from '../../lib/material';
 import { CHAVE_MEUS_PONTOS, servicoPonto } from '../../lib/ponto';
@@ -28,6 +28,7 @@ const ITEM_CHAMADA: ItemMenu = { caminho: '/professor', rotulo: 'Fazer chamada',
 const ITENS_COMUNS: ItemMenu[] = [
   // Materiais e atividades juntos, em abas dentro de cada trilha
   { caminho: '/professor/trilhas', rotulo: 'Trilhas', Icone: IconeMaterial },
+  ...ITENS_FAVELAB,
 ];
 const ITENS_MENU: ItemMenu[] = [ITEM_CHAMADA, ...ITENS_COMUNS];
 // "Meu ponto" só aparece para quem é professor (o gestor entra na área, mas não bate ponto)
