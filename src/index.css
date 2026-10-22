@@ -111,3 +111,58 @@
     box-shadow: 0 0 20px rgba(139, 92, 246, 0.5);
   }
 }
+
+/**
+ * TELAS GRANDES (issue #60)
+ * Todo o layout usa rem: aumentar a fonte da raiz amplia o site inteiro sem
+ * mexer nos breakpoints. 2560px e 3840px ficam com o mesmo aspecto do
+ * 1920px (1,333x e 2x), em vez de conteúdo pequeno no meio da tela.
+ * Até 1920px nada muda.
+ */
+@media (min-width: 2560px) {
+  html {
+    font-size: 133.333%;
+  }
+}
+@media (min-width: 3840px) {
+  html {
+    font-size: 200%;
+  }
+}
+
+/**
+ * MODO TV (issue #61, ver src/lib/modoTv.ts): fonte maior para ler de longe,
+ * margem segura contra o overscan e anel de foco grosso para o controle remoto.
+ */
+html[data-tv] {
+  font-size: 112.5%;
+  padding: 3.5vh 2.5vw;
+}
+@media (min-width: 1920px) {
+  html[data-tv] {
+    font-size: 125%;
+  }
+}
+@media (min-width: 2560px) {
+  html[data-tv] {
+    font-size: 166.667%;
+  }
+}
+@media (min-width: 3840px) {
+  html[data-tv] {
+    font-size: 250%;
+  }
+}
+/* Elementos fixos ignoram o padding do html: recuam pela mesma margem segura */
+html[data-tv] nav.fixed {
+  top: 3.5vh;
+  left: 2.5vw;
+  right: 2.5vw;
+}
+html[data-tv] .fixed.inset-0 {
+  inset: 3.5vh 2.5vw;
+}
+html[data-tv] :focus-visible {
+  outline: 4px solid #8bc53f;
+  outline-offset: 4px;
+}
