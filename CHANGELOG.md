@@ -5,6 +5,28 @@ dos commits (Conventional Commits) ou da label `version:*` no PR de release.
 
 Enquanto o site está em desenvolvimento, as versões ficam em 0.x (pré-lançamento). A 1.0.0 é o lançamento.
 
+## [0.6.0] - 2026-10-22
+
+### Adicionado
+
+- Favelab (a gamificação) na sidebar de aluno, instrutor, colaborador, banca e gestor. O botão abre o Favelab já logado, sem novo login: o portal assina um token de 60 s, com só o id e o papel, e o Favelab o troca por uma sessão. Aluno entra como aluno; professor, colaborador e banca como professor; gestor como administrador. Parceiro não vê o item. O endereço vem de ; sem ele o item não aparece.
+- Site e portal em telas 4K: a partir de 2560px e 3840px a fonte da raiz sobe e o layout fica com o aspecto do 1920px. Até 1920px nada muda.
+- Modo TV: abrir com  (e  desliga) deixa a fonte maior e o anel de foco grosso, para ler de longe e navegar com o controle remoto.
+
+### Alterado
+
+- Galeria da home: "Momentos da 3ª Edição do FavelaWare".
+- Logo nova da UNA Centerminas.
+
+### Segurança
+
+- Token do Favelab assinado com chave Ed25519 (só o portal tem a privada), vida de 60 s, uso único, entregue no fragmento da URL e nunca logado. Falha fechada: sem chave, o portal recusa.
+
+### Pendente
+
+- Validação visual real em 2560x1440, 3840x2160 e TV (issues #60 e #61), com prints.
+- A margem segura contra overscan da TV ficou de fora: na TV, desligue o overscan no aparelho.
+
 ## [0.5.0] - 2026-10-08
 
 ### Adicionado
