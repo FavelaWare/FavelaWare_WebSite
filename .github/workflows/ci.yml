@@ -68,7 +68,11 @@ jobs:
       # Edge Functions rodam em Deno: tipos conferidos com o Deno do npm
       - name: Tipos das Edge Functions (Deno)
         working-directory: supabase/functions
-        run: npx --yes deno@2.9.6 check acessos-alunos/index.ts convidar-professor/index.ts entregas-drive/index.ts
+        run: npx --yes deno@2.9.6 check acessos-alunos/index.ts convidar-professor/index.ts entregas-drive/index.ts favelab-acesso/index.ts
+
+      - name: Testes das Edge Functions (Deno)
+        working-directory: supabase/functions
+        run: npx --yes deno@2.9.6 test --allow-env _shared/ssoFavelab.test.ts
 
       - name: Build
         run: npm run build

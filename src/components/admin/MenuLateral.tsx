@@ -13,7 +13,7 @@
  * O botão Sair fica no rodapé do menu.
  * Cores escuras e neutras de propósito: é área de trabalho, não o site institucional.
  */
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { IconeFechar, IconeMenu, IconeSair } from './Icones';
 import { foco } from './designSystem';
@@ -23,8 +23,8 @@ export interface ItemMenu {
   caminho: string;
   rotulo: string;
   Icone: React.FC<{ className?: string }>;
-  /** Endereço de outro site: abre em nova aba (o caminho é a URL inteira) */
-  externo?: boolean;
+  /** Ação no clique em vez de navegar; devolve a mensagem de erro para mostrar no item, ou null se deu certo */
+  acao?: () => Promise<string | null>;
   /** Outros endereços em que o item também fica marcado (as abas da página) */
   ativoEm?: string[];
 }
@@ -60,6 +60,51 @@ const Balao: React.FC<{ texto: string }> = ({ texto }) => (
   </span>
 );
 
+/**
+ * Item que roda uma ação em vez de navegar (ex.: abrir o Favelab já logado).
+ * A ação é chamada direto do clique (o navegador só deixa abrir aba assim);
+ * enquanto roda o botão fica desligado e o erro, se houver, aparece abaixo.
+ */
+const ItemDeAcao: React.FC<{
+  item: ItemMenu;
+  classe: string;
+  recolhido: boolean;
+  aoEscolher?: () => void;
+  children: React.ReactNode;
+}> = ({ item, classe, recolhido, aoEscolher, children }) => {
+  const [ocupado, setOcupado] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+  const executar = async () => {
+    setOcupado(true);
+    setErro(null);
+    try {
+      const mensagem = await item.acao!();
+      setErro(mensagem);
+      if (!mensagem) aoEscolher?.();
+    } finally {
+      setOcupado(false);
+    }
+  };
+  return (
+    <>
+      <button
+        type="button"
+        onClick={executar}
+        disabled={ocupado}
+        aria-busy={ocupado}
+        className={`${classe} disabled:cursor-wait disabled:opacity-70`}
+      >
+        {children}
+      </button>
+      {erro && !recolhido && (
+        <p role="alert" className="px-3 pb-1 pt-1 text-xs text-red-200">
+          {erro}
+        </p>
+      )}
+    </>
+  );
+};
+
 /** Itens + botão Sair (igual no computador e na gaveta do celular) */
 const ConteudoMenu: React.FC<{
   itens: ItemMenu[];
@@ -92,10 +137,10 @@ const ConteudoMenu: React.FC<{
             );
             return (
               <li key={caminho} className="group relative">
-                {item.externo ? (
-                  <a href={caminho} target="_blank" rel="noopener noreferrer" onClick={aoEscolher} className={classe}>
+                {item.acao ? (
+                  <ItemDeAcao item={item} classe={classe} recolhido={recolhido} aoEscolher={aoEscolher}>
                     {conteudo}
-                  </a>
+                  </ItemDeAcao>
                 ) : (
                   <Link to={caminho} onClick={aoEscolher} aria-current={ativo ? 'page' : undefined} className={classe}>
                     {conteudo}
