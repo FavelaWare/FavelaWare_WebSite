@@ -9,9 +9,9 @@ Enquanto o site está em desenvolvimento, as versões ficam em 0.x (pré-lançam
 
 ### Adicionado
 
-- Favelab (a gamificação) na sidebar de aluno, instrutor, colaborador, banca e gestor. O botão abre o Favelab já logado, sem novo login: o portal assina um token de 60 s, com só o id e o papel, e o Favelab o troca por uma sessão. Aluno entra como aluno; professor, colaborador e banca como professor; gestor como administrador. Parceiro não vê o item. O endereço vem de ; sem ele o item não aparece.
+- Favelab (a gamificação) na sidebar de aluno, instrutor, colaborador, banca e gestor. O botão abre o Favelab já logado, sem novo login: o portal assina um token de 60 s, com só o id e o papel, e o Favelab o troca por uma sessão. Aluno entra como aluno; professor, colaborador e banca como professor; gestor como administrador. Parceiro não vê o item. O endereço vem de `VITE_FAVELAB_URL`; sem ele o item não aparece.
 - Site e portal em telas 4K: a partir de 2560px e 3840px a fonte da raiz sobe e o layout fica com o aspecto do 1920px. Até 1920px nada muda.
-- Modo TV: abrir com  (e  desliga) deixa a fonte maior e o anel de foco grosso, para ler de longe e navegar com o controle remoto.
+- Modo TV: abrir com `?tv=1` (e `?tv=0` desliga) deixa a fonte maior e o anel de foco grosso, para ler de longe e navegar com o controle remoto.
 
 ### Alterado
 
