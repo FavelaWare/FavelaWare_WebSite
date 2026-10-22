@@ -23,6 +23,8 @@ export interface ItemMenu {
   caminho: string;
   rotulo: string;
   Icone: React.FC<{ className?: string }>;
+  /** Endereço de outro site: abre em nova aba (o caminho é a URL inteira) */
+  externo?: boolean;
   /** Outros endereços em que o item também fica marcado (as abas da página) */
   ativoEm?: string[];
 }
@@ -74,24 +76,31 @@ const ConteudoMenu: React.FC<{
           {itens.map((item) => {
             const { caminho, rotulo, Icone } = item;
             const ativo = itemEstaAtivo(item, pathname);
+            const classe = `${classeItem(recolhido)} ${ativo ? 'bg-white/15 text-white' : 'text-white/75 hover:bg-white/10 hover:text-white'}`;
+            const conteudo = (
+              <>
+                {/* Barrinha verde marca a página atual */}
+                {ativo && (
+                  <span
+                    className="absolute bottom-2 left-0 top-2 w-1 rounded-r bg-favela-green-500"
+                    aria-hidden="true"
+                  />
+                )}
+                <Icone />
+                <span className={recolhido ? 'sr-only' : 'truncate'}>{rotulo}</span>
+              </>
+            );
             return (
               <li key={caminho} className="group relative">
-                <Link
-                  to={caminho}
-                  onClick={aoEscolher}
-                  aria-current={ativo ? 'page' : undefined}
-                  className={`${classeItem(recolhido)} ${ativo ? 'bg-white/15 text-white' : 'text-white/75 hover:bg-white/10 hover:text-white'}`}
-                >
-                  {/* Barrinha verde marca a página atual */}
-                  {ativo && (
-                    <span
-                      className="absolute bottom-2 left-0 top-2 w-1 rounded-r bg-favela-green-500"
-                      aria-hidden="true"
-                    />
-                  )}
-                  <Icone />
-                  <span className={recolhido ? 'sr-only' : 'truncate'}>{rotulo}</span>
-                </Link>
+                {item.externo ? (
+                  <a href={caminho} target="_blank" rel="noopener noreferrer" onClick={aoEscolher} className={classe}>
+                    {conteudo}
+                  </a>
+                ) : (
+                  <Link to={caminho} onClick={aoEscolher} aria-current={ativo ? 'page' : undefined} className={classe}>
+                    {conteudo}
+                  </Link>
+                )}
                 {recolhido && <Balao texto={rotulo} />}
               </li>
             );

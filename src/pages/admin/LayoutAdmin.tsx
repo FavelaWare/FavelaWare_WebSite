@@ -50,7 +50,7 @@ import { chaveTurmas, servicoTurmas } from '../../lib/turmas';
 import { CHAVE_SOLICITACOES, servicoSolicitacoes } from '../../lib/solicitacoes';
 import { servicoSessao, type AcessoDaArea as Acesso } from '../../lib/sessao';
 import { servicoAvaliacoes } from '../../lib/avaliacoes';
-import { ITEM_BANCA } from '../../components/admin/itensDeMenu';
+import { ITEM_BANCA, ITENS_FAVELAB } from '../../components/admin/itensDeMenu';
 import { CHAVE_EQUIPE, servicoEquipe } from '../../lib/equipe';
 import { CHAVE_MATERIAL, servicoMaterial } from '../../lib/material';
 import { CHAVE_ACESSOS, servicoAcessos } from '../../lib/acessos';
@@ -297,7 +297,11 @@ const AreaDoGestor: React.FC = () => {
 
   return (
     <Moldura
-      itens={[...menuDo(acesso ?? 'parceiro'), ...(souDaBanca ? [ITEM_BANCA] : [])]}
+      itens={[
+        ...menuDo(acesso ?? 'parceiro'),
+        ...(acesso === 'gestor' ? ITENS_FAVELAB : []),
+        ...(souDaBanca ? [ITEM_BANCA] : []),
+      ]}
       subtitulo={acesso ? SUBTITULO_DO_ACESSO[acesso] : ''}
       acoesTopo={seletorDeEdicao}
     >

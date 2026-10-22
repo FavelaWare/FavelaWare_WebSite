@@ -117,6 +117,12 @@ export const IconeLinkExterno: Icone = (p) => (
     <path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5" />
   </Svg>
 );
+export const IconeJogo: Icone = (p) => (
+  <Svg {...p}>
+    <path d="M6 11h4M8 9v4M15 12h.01M18 10h.01" />
+    <path d="M17.3 5H6.7a4 4 0 0 0-3.9 3.1l-1.5 6.5A2.9 2.9 0 0 0 4.1 18c.9 0 1.7-.5 2.1-1.3l.8-1.7h10l.8 1.7c.4.8 1.2 1.3 2.1 1.3a2.9 2.9 0 0 0 2.8-3.4l-1.5-6.5A4 4 0 0 0 17.3 5z" />
+  </Svg>
+);
 export const IconePonto: Icone = (p) => (
   <Svg {...p}>
     <circle cx="12" cy="12" r="9" />
