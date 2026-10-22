@@ -16,9 +16,10 @@ export const CHAVE_PUBLICAVEL_SUPABASE = import.meta.env.VITE_SUPABASE_PUBLISHAB
 
 /**
  * Endereço do Favelab (a gamificação, app separado com banco próprio).
- * Sem ele o item do menu não aparece.
+ * Sem ele (ou se não for http/https) o item do menu não aparece.
  */
-export const URL_FAVELAB = ((import.meta.env.VITE_FAVELAB_URL as string | undefined) ?? '').trim() || null;
+const URL_FAVELAB_BRUTA = ((import.meta.env.VITE_FAVELAB_URL as string | undefined) ?? '').trim();
+export const URL_FAVELAB = /^https?:\/\//i.test(URL_FAVELAB_BRUTA) ? URL_FAVELAB_BRUTA : null;
 
 /** Bucket público das fotos dos alunos (dashboard e páginas de turmas) */
 export const BUCKET_FOTOS_ALUNOS = 'fotos-alunos';
