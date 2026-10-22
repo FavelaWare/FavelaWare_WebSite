@@ -131,12 +131,13 @@
 }
 
 /**
- * MODO TV (issue #61, ver src/lib/modoTv.ts): fonte maior para ler de longe,
- * margem segura contra o overscan e anel de foco grosso para o controle remoto.
+ * MODO TV (issue #61, ver src/lib/modoTv.ts): fonte maior para ler de longe e
+ * anel de foco grosso para navegar com o controle remoto. A margem segura
+ * contra o overscan não entra: padding no html quebra os 100vh e os overlays
+ * fixos; na TV, desligue o overscan (ou ajuste o tamanho da imagem) no aparelho.
  */
 html[data-tv] {
   font-size: 112.5%;
-  padding: 3.5vh 2.5vw;
 }
 @media (min-width: 1920px) {
   html[data-tv] {
@@ -153,16 +154,7 @@ html[data-tv] {
     font-size: 250%;
   }
 }
-/* Elementos fixos ignoram o padding do html: recuam pela mesma margem segura */
-html[data-tv] nav.fixed {
-  top: 3.5vh;
-  left: 2.5vw;
-  right: 2.5vw;
-}
-html[data-tv] .fixed.inset-0 {
-  inset: 3.5vh 2.5vw;
-}
 html[data-tv] :focus-visible {
-  outline: 4px solid #8bc53f;
-  outline-offset: 4px;
+  outline: 0.25rem solid #8bc53f;
+  outline-offset: 0.25rem;
 }

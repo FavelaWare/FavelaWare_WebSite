@@ -1,10 +1,10 @@
 /**
- * Modo TV: tela grande vista de longe, com overscan e controle remoto.
+ * Modo TV: tela grande vista de longe, navegada pelo controle remoto.
  *
  * A TV não se distingue de um monitor pelo navegador, então o modo é ligado
  * por quem apresenta: abrir o site com `?tv=1` (e `?tv=0` para desligar). A
  * escolha fica guardada no aparelho. O CSS do modo está em `index.css`
- * (`html[data-tv]`): fonte maior, margem segura contra o corte das bordas e
+ * (`html[data-tv]`): fonte maior e
  * anel de foco grosso para navegar só com as setas.
  */
 
