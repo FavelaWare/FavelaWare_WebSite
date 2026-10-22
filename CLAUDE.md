@@ -29,6 +29,16 @@ Skills de apoio em `.claude/skills/`, invocadas conforme o risco e não por prot
 | `owasp-security`  | Autenticação, autorização, sessão, API, ou funcionalidade com agente/IA               |
 | `security-review` | Revisão de segurança **do diff**, antes do PR                                         |
 | `audit-codebase`  | Auditoria do projeto **inteiro**, periódica; não é etapa de PR                        |
+| `ponytail-*`      | `-review` (revisão de uma mudança), `-audit` (repo inteiro), `-debt`, `-gain`, `-help` |
+| `frontend-design` | Direção visual ao criar ou reformular uma interface                                   |
+| `product-designer`| Jornadas, wireframes, design tokens e testes de usabilidade                           |
+| `migracao-sql`    | Criar ou alterar tabela, RLS, função ou trigger, com o teste de RLS                   |
+| `deploy`          | Publicar o site na Hostinger e as Edge Functions no Supabase                          |
+| modelagem de dados | `conceptual-modeling`, `entity-relationship-modeling`, `relational-database-design`, `data-modeling-fundamentals`, `database-schema-designer` e `postgresql-table-design`, ao desenhar ou rever o schema |
+| `navegacao-web`, `performance-web`, `web-3d`, `3d-web-experience` | Rotas e menus; bundle e LCP; 3D e WebGL |
+
+O inventário de todos os agentes e skills, com a decisão sobre cada uma, está em `docs/inventario-agentes-e-skills.md`.
+`.claude/skills` é a única fonte; a pasta `.agents/` é de ferramenta e não vai para o git.
 
 Fora do fluxo do PR há o agente **`auditor-de-padroes`**: mede a distância entre o código existente e as boas práticas num escopo dado e devolve um plano de migração em ondas. Use ao começar refatoração ou decidir por onde atacar dívida, não como gate de PR (isso é o `reviewer`).
 
