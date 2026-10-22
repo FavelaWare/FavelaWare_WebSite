@@ -18,6 +18,7 @@ import Moldura, { TransicaoDaArea } from '../../components/admin/Moldura';
 import { useCarregamentoCompleto } from '../../components/admin/Carregamento';
 import type { ItemMenu } from '../../components/admin/MenuLateral';
 import { IconeMaterial, IconeSolicitacoes } from '../../components/admin/Icones';
+import { ITENS_FAVELAB } from '../../components/admin/itensDeMenu';
 import { CHAVE_ATIVIDADES_ALUNO, servicoAtividades } from '../../lib/atividades';
 import { servicoCache } from '../../lib/cache';
 import { CHAVE_MATERIAL, servicoMaterial } from '../../lib/material';
@@ -26,6 +27,7 @@ const ITENS_MENU: ItemMenu[] = [
   // Materiais e atividades juntos, em abas dentro de cada trilha
   { caminho: '/aluno', rotulo: 'Trilhas', Icone: IconeMaterial },
   { caminho: '/aluno/solicitacoes', rotulo: 'Solicitações', Icone: IconeSolicitacoes },
+  ...ITENS_FAVELAB,
 ];
 
 const AreaDoAluno: React.FC = () => {
