@@ -5,6 +5,19 @@ dos commits (Conventional Commits) ou da label `version:*` no PR de release.
 
 Enquanto o site está em desenvolvimento, as versões ficam em 0.x (pré-lançamento). A 1.0.0 é o lançamento.
 
+## [0.6.1] - 2026-10-22
+
+### Adicionado
+
+- Inventário de agentes e skills (`docs/inventario-agentes-e-skills.md`): 42 skills e 6 agentes, com a decisão sobre cada um e o que foi conferido antes de adotar.
+- Skills de design, modelagem de dados e 3D, e as variantes do `ponytail` (com a licença do autor original), passam a ser versionadas.
+- Skills de migração (`migracao-sql`) e de publicação (`deploy`) escritas para o stack do portal: Supabase com RLS e site estático na Hostinger.
+
+### Alterado
+
+- O guia do projeto lista as skills de apoio e quando usar cada uma; a pasta de ferramenta `.agents/` deixa de ir para o git.
+- Removida de um comentário de `.github/scripts/versionar.sh` a menção à organização de referência.
+
 ## [0.6.0] - 2026-10-22
 
 ### Adicionado
