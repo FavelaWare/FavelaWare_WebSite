@@ -5,6 +5,12 @@ dos commits (Conventional Commits) ou da label `version:*` no PR de release.
 
 Enquanto o site está em desenvolvimento, as versões ficam em 0.x (pré-lançamento). A 1.0.0 é o lançamento.
 
+## [0.6.2] - 2026-10-22
+
+### Removido
+
+- A escala para telas 4K e o modo TV (`?tv=1`), adicionados na 0.6.0, foram desfeitos a pedido: o visual do portal volta a ser o de antes em qualquer resolução. As mudanças de design ficam só no Favelab.
+
 ## [0.6.1] - 2026-10-22
 
 ### Adicionado
