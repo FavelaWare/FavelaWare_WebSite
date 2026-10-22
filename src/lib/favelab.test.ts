@@ -47,13 +47,13 @@ describe('urlDeAcesso', () => {
   });
 });
 
-describe('servicoFavelab.abrirComoAluno', () => {
+describe('servicoFavelab.abrir', () => {
   beforeEach(() => vi.restoreAllMocks());
 
   it('abre a aba antes de pedir o token e a leva ao Favelab com o token no fragmento', async () => {
     const invoke = invocar({ data: { token: TOKEN } });
     const { aba, abrirAba, irPara, janela } = janelaFalsa();
-    const resultado = await servicoFavelab.abrirComoAluno(janela);
+    const resultado = await servicoFavelab.abrir(janela);
     expect(resultado.status).toBe(StatusProcessamento.Sucesso);
     expect(abrirAba.mock.invocationCallOrder[0]).toBeLessThan(invoke.mock.invocationCallOrder[0]);
     expect(invoke).toHaveBeenCalledWith('favelab-acesso', { method: 'POST' });
@@ -65,7 +65,7 @@ describe('servicoFavelab.abrirComoAluno', () => {
   it('se o navegador bloquear a aba, segue na mesma aba', async () => {
     invocar({ data: { token: TOKEN } });
     const { irPara, janela } = janelaFalsa(false);
-    await servicoFavelab.abrirComoAluno(janela);
+    await servicoFavelab.abrir(janela);
     expect(irPara).toHaveBeenCalledWith(`https://favelab.vercel.app/#sso=${TOKEN}`);
   });
 
@@ -73,7 +73,7 @@ describe('servicoFavelab.abrirComoAluno', () => {
     const recusa = new Response(JSON.stringify({ erro: 'O Favelab é só para alunos.' }), { status: 403 });
     invocar({ error: new FunctionsHttpError(recusa) });
     const { aba, irPara, janela } = janelaFalsa();
-    const resultado = await servicoFavelab.abrirComoAluno(janela);
+    const resultado = await servicoFavelab.abrir(janela);
     expect(resultado.status).toBe(StatusProcessamento.ExcecaoNegocio);
     expect(resultado.mensagem).toBe('O Favelab é só para alunos.');
     expect(aba.fechada).toBe(true);
@@ -84,7 +84,7 @@ describe('servicoFavelab.abrirComoAluno', () => {
   it('falha de rede vira exceção de sistema com o texto padrão', async () => {
     invocar({ error: new Error('rede') });
     const { aba, janela } = janelaFalsa();
-    const resultado = await servicoFavelab.abrirComoAluno(janela);
+    const resultado = await servicoFavelab.abrir(janela);
     expect(resultado.status).toBe(StatusProcessamento.ExcecaoSistema);
     expect(resultado.mensagem).toBe('Não foi possível abrir o Favelab. Tente de novo.');
     expect(aba.fechada).toBe(true);
@@ -93,7 +93,7 @@ describe('servicoFavelab.abrirComoAluno', () => {
   it('resposta sem token não abre o Favelab', async () => {
     invocar({ data: {} });
     const { aba, irPara, janela } = janelaFalsa();
-    const resultado = await servicoFavelab.abrirComoAluno(janela);
+    const resultado = await servicoFavelab.abrir(janela);
     expect(resultado.status).toBe(StatusProcessamento.ExcecaoNegocio);
     expect(aba.fechada).toBe(true);
     expect(irPara).not.toHaveBeenCalled();
@@ -103,7 +103,7 @@ describe('servicoFavelab.abrirComoAluno', () => {
     invocar({ data: { token: TOKEN } });
     const log = vi.spyOn(console, 'log');
     const erro = vi.spyOn(console, 'error');
-    await servicoFavelab.abrirComoAluno(janelaFalsa().janela);
+    await servicoFavelab.abrir(janelaFalsa().janela);
     expect(JSON.stringify([...log.mock.calls, ...erro.mock.calls])).not.toContain(TOKEN);
   });
 });

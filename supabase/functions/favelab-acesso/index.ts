@@ -9,9 +9,10 @@
  * Rota:
  *   POST /favelab-acesso   (sem corpo, com login do aluno)  ->  { token }
  *
- * Só aluno recebe token: perfil 'aluno' com participante, sem troca de senha pendente,
- * sem conta de "ver como" (pode_alternar_papel) e sem ban. Instrutor e gestor seguem
- * com o login normal do Favelab. Qualquer dúvida recusa (falha fechada).
+ * Quem entra e com que papel (decidirAcessoAoFavelab): aluno com turma, professor, colaborador,
+ * banca e gestor. Parceiro não entra. O papel vai assinado no token e o Favelab o aplica a cada
+ * acesso. Quem ainda deve trocar a senha conclui o primeiro acesso antes. Conta banida não recebe
+ * token. Qualquer dúvida recusa (falha fechada).
  *
  * Segredos (npx supabase secrets set ...), nunca no repositório:
  *   FAVELAB_SSO_CHAVE_PRIVADA  chave privada Ed25519 em JWK (JSON)
@@ -22,12 +23,12 @@
  */
 import { clienteDoUsuario } from '../_shared/drive.ts';
 import { cabecalhosCors, clienteAdmin, criarResposta, servir } from '../_shared/http.ts';
-import { assinarTokenDoFavelab, lerChaveDoAmbiente } from '../_shared/ssoFavelab.ts';
+import { assinarTokenDoFavelab, decidirAcessoAoFavelab, lerChaveDoAmbiente } from '../_shared/ssoFavelab.ts';
 
 const CORS = cabecalhosCors('POST, OPTIONS');
 const resposta = criarResposta(CORS);
 
-const SEM_ACESSO = 'O Favelab é só para alunos. Instrutores e gestores entram pelo login do Favelab.';
+const SEM_ACESSO = 'Sua conta não tem acesso ao Favelab.';
 
 servir('favelab-acesso', CORS, {
   POST: async (req) => {
@@ -51,12 +52,15 @@ servir('favelab-acesso', CORS, {
       console.error('[favelab-acesso] falha ao ler o perfil', error.code);
       return resposta(503, { erro: 'Não foi possível abrir o Favelab agora. Tente de novo.' });
     }
-    if (perfil?.papel !== 'aluno' || !perfil.participante_id || perfil.pode_alternar_papel) {
-      console.log('[favelab-acesso] recusado: não é aluno com área');
-      return resposta(403, { erro: SEM_ACESSO });
-    }
-    if (perfil.precisa_trocar_senha) {
-      return resposta(403, { erro: 'Conclua o primeiro acesso no portal antes de abrir o Favelab.' });
+    const decisao = decidirAcessoAoFavelab(perfil);
+    if ('recusa' in decisao) {
+      console.log('[favelab-acesso] recusado:', decisao.recusa);
+      return resposta(403, {
+        erro:
+          decisao.recusa === 'primeiro-acesso'
+            ? 'Conclua o primeiro acesso no portal antes de abrir o Favelab.'
+            : SEM_ACESSO,
+      });
     }
 
     // Conta banida no Auth não recebe token (o login já foi aceito, mas o ban vale)
@@ -67,7 +71,7 @@ servir('favelab-acesso', CORS, {
       return resposta(403, { erro: SEM_ACESSO });
     }
 
-    const token = await assinarTokenDoFavelab(usuario.usuarioId, chave);
+    const token = await assinarTokenDoFavelab(usuario.usuarioId, decisao.papel, chave);
     console.log('[favelab-acesso] token emitido');
     return resposta(200, { token });
   },

@@ -23,8 +23,6 @@ export interface ItemMenu {
   caminho: string;
   rotulo: string;
   Icone: React.FC<{ className?: string }>;
-  /** Endereço de outro site: abre em nova aba (o caminho é a URL inteira) */
-  externo?: boolean;
   /** Ação no clique em vez de navegar; devolve a mensagem de erro para mostrar no item, ou null se deu certo */
   acao?: () => Promise<string | null>;
   /** Outros endereços em que o item também fica marcado (as abas da página) */
@@ -143,10 +141,6 @@ const ConteudoMenu: React.FC<{
                   <ItemDeAcao item={item} classe={classe} recolhido={recolhido} aoEscolher={aoEscolher}>
                     {conteudo}
                   </ItemDeAcao>
-                ) : item.externo ? (
-                  <a href={caminho} target="_blank" rel="noopener noreferrer" onClick={aoEscolher} className={classe}>
-                    {conteudo}
-                  </a>
                 ) : (
                   <Link to={caminho} onClick={aoEscolher} aria-current={ativo ? 'page' : undefined} className={classe}>
                     {conteudo}

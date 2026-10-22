@@ -1,9 +1,9 @@
 /**
  * ============================================
- * ACESSO AO FAVELAB (SSO DO ALUNO)
+ * ACESSO AO FAVELAB (SSO)
  * ============================================
  *
- * O aluno logado no portal entra no Favelab (a gamificação, app e banco à parte)
+ * Quem está logado no portal entra no Favelab (a gamificação, app e banco à parte)
  * sem novo login: a Edge Function `favelab-acesso` confere o login e devolve um
  * token de 60 s; ele viaja no fragmento (#sso=...) da URL do Favelab, que nunca
  * é enviado a servidor nem entra no Referer, e é trocado lá por uma sessão.
@@ -41,11 +41,11 @@ export const urlDeAcesso = (base: string, token: string): string => {
 
 class ServicoFavelab {
   /**
-   * Abre o Favelab já logado. Chame direto do clique: a aba é aberta antes de
+   * Abre o Favelab já logado (a conta que pode entrar e o papel dela são decididos no servidor). Chame direto do clique: a aba é aberta antes de
    * pedir o token (senão o bloqueador de pop-up barra) e recebe o endereço depois.
    * O token nunca é logado.
    */
-  async abrirComoAluno(janela: JanelaDoFavelab = janelaDoNavegador()): Promise<ResultadoOperacao> {
+  async abrir(janela: JanelaDoFavelab = janelaDoNavegador()): Promise<ResultadoOperacao> {
     if (!URL_FAVELAB) return excecaoDeNegocio('O Favelab ainda não está disponível.');
     const aba = janela.abrirAba();
 

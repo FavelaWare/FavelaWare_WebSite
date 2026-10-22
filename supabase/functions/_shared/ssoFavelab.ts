@@ -3,7 +3,7 @@
  *
  * O portal só assina; quem valida é a função `sso-portal` do Favelab, que guarda
  * apenas a chave pública. Vida de 60 s e `jti` único: o Favelab consome cada
- * `jti` uma vez. Sem nenhum dado pessoal no token: só o id do usuário (`sub`).
+ * `jti` uma vez. Sem dado pessoal no token: só o id do usuário (`sub`) e o papel.
  */
 
 export const ISSUER_PADRAO = 'favelaware-portal';
@@ -17,6 +17,37 @@ const base64Url = (dados: Uint8Array | string): string => {
     .replace(/\//g, '_')
     .replace(/=+$/, '');
 };
+
+/** Papel no Favelab: aluno, professor ou administrador (o Favelab aplica a cada acesso) */
+export type PapelNoFavelab = 'student' | 'teacher' | 'admin';
+
+export interface PerfilParaOFavelab {
+  papel: string | null;
+  participante_id: number | string | null;
+  precisa_trocar_senha: boolean | null;
+  pode_alternar_papel: boolean | null;
+}
+
+export type DecisaoDeAcesso =
+  | { papel: PapelNoFavelab }
+  | { recusa: 'sem-acesso' | 'primeiro-acesso' };
+
+/**
+ * Quem entra no Favelab e com que papel. Na dúvida, recusa (falha fechada).
+ * - gestor e a conta que alterna papéis (ver como) = administrador, seja qual for a visão do momento;
+ * - professor, colaborador e banca = professor;
+ * - aluno só com área (participante ligado);
+ * - parceiro não entra;
+ * - quem ainda deve trocar a senha conclui o primeiro acesso no portal antes.
+ */
+export function decidirAcessoAoFavelab(perfil: PerfilParaOFavelab | null): DecisaoDeAcesso {
+  if (!perfil?.papel) return { recusa: 'sem-acesso' };
+  if (perfil.precisa_trocar_senha) return { recusa: 'primeiro-acesso' };
+  if (perfil.pode_alternar_papel || perfil.papel === 'gestor') return { papel: 'admin' };
+  if (['professor', 'colaborador', 'banca'].includes(perfil.papel)) return { papel: 'teacher' };
+  if (perfil.papel === 'aluno' && perfil.participante_id) return { papel: 'student' };
+  return { recusa: 'sem-acesso' };
+}
 
 export interface ChaveDeAssinatura {
   /** Chave privada Ed25519 em JWK (secret FAVELAB_SSO_CHAVE_PRIVADA) */
@@ -41,6 +72,7 @@ export const lerChaveDoAmbiente = (): ChaveDeAssinatura | null => {
 /** Assina o token de quem entra no Favelab (`usuarioId` é o id da conta no portal) */
 export async function assinarTokenDoFavelab(
   usuarioId: string,
+  papel: PapelNoFavelab,
   chave: ChaveDeAssinatura,
   agoraS = Math.floor(Date.now() / 1000),
 ): Promise<string> {
@@ -51,6 +83,7 @@ export async function assinarTokenDoFavelab(
       aud: AUDIENCE_FAVELAB,
       sub: usuarioId,
       jti: crypto.randomUUID(),
+      role: papel,
       iat: agoraS,
       nbf: agoraS,
       exp: agoraS + VIDA_DO_TOKEN_S,

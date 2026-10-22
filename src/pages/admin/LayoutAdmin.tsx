@@ -299,7 +299,7 @@ const AreaDoGestor: React.FC = () => {
     <Moldura
       itens={[
         ...menuDo(acesso ?? 'parceiro'),
-        ...(acesso === 'gestor' ? ITENS_FAVELAB : []),
+        ...(acesso === 'parceiro' ? [] : ITENS_FAVELAB),
         ...(souDaBanca ? [ITEM_BANCA] : []),
       ]}
       subtitulo={acesso ? SUBTITULO_DO_ACESSO[acesso] : ''}
