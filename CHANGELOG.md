@@ -5,7 +5,7 @@ dos commits (Conventional Commits) ou da label `version:*` no PR de release.
 
 Enquanto o site está em desenvolvimento, as versões ficam em 0.x (pré-lançamento). A 1.0.0 é o lançamento.
 
-## [Não lançado]
+## [0.7.1] - 2026-10-23
 
 ### Corrigido
 
