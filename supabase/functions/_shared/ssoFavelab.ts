@@ -80,14 +80,28 @@ export const NOME_MAXIMO = 30;
  * palavra só fica como está. Sem nome no portal, devolve undefined e o token vai sem a claim.
  */
 export function nomeDeExibicao(nome: string | null | undefined): string | undefined {
-  // deno-lint-ignore no-control-regex
-  const partes = (nome ?? '').replace(/[\u0000-\u001f\u007f]/g, ' ').trim().split(/\s+/).filter(Boolean);
+  // NFC: letra com acento decomposto conta como um caractere só. Controle, formato (inverte a direção do
+  // texto, largura zero) e separador de linha viram espaço.
+  const partes = (nome ?? '')
+    .normalize('NFC')
+    .replace(/[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/gu, ' ')
+    .trim()
+    .split(/\s+/u)
+    .filter(Boolean);
   if (partes.length === 0) return undefined;
-  const maiuscula = (t: string) => t.charAt(0).toLocaleUpperCase('pt-BR');
-  const primeiro = maiuscula(partes[0]) + partes[0].slice(1).toLocaleLowerCase('pt-BR');
-  if (partes.length === 1) return primeiro.slice(0, NOME_MAXIMO);
-  const ultimo = partes[partes.length - 1];
-  return `${primeiro.slice(0, NOME_MAXIMO - 3)} ${maiuscula(ultimo)}.`;
+  // Tudo por caractere (ponto de código), nunca por unidade UTF-16: não corta emoji ao meio
+  const maiuscula = (t: string) => t.toLocaleUpperCase('pt-BR');
+  const cortar = (t: string, n: number) => Array.from(t).slice(0, Math.max(n, 0)).join('');
+  const capitalizar = (t: string) => {
+    const [inicio, ...resto] = Array.from(t);
+    return maiuscula(inicio) + resto.join('').toLocaleLowerCase('pt-BR');
+  };
+  const primeiro = capitalizar(partes[0]);
+  if (partes.length === 1) return cortar(primeiro, NOME_MAXIMO);
+  // A inicial pode ter mais de um caractere (ß vira SS): o espaço dela é reservado antes de cortar o primeiro nome
+  const inicial = maiuscula(Array.from(partes[partes.length - 1])[0]);
+  const sufixo = ` ${inicial}.`;
+  return cortar(primeiro, NOME_MAXIMO - Array.from(sufixo).length) + sufixo;
 }
 
 export interface OpcoesDoToken {

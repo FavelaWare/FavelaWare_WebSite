@@ -121,3 +121,43 @@ Deno.test('nomeDeExibicao: sem nome devolve undefined e nunca passa do limite', 
   igual(longo?.endsWith(' S.'), true, 'mantém a inicial');
   igual((nomeDeExibicao('B'.repeat(80)) ?? '').length, NOME_MAXIMO, 'uma palavra longa é cortada no limite');
 });
+
+const pontos = (t: string | undefined) => Array.from(t ?? '').length;
+const semParSolto = (t: string | undefined) => (t ?? '').isWellFormed();
+
+Deno.test('nomeDeExibicao: inicial que vira duas letras (ß) nunca passa do limite', () => {
+  const nome = nomeDeExibicao('A'.repeat(40) + ' ßilva');
+  igual(pontos(nome) <= NOME_MAXIMO, true, 'limite');
+  igual(nome?.endsWith(' SS.'), true, 'inicial SS');
+  igual(nomeDeExibicao('Ana ßilva'), 'Ana SS.', 'nome curto com ß');
+});
+
+Deno.test('nomeDeExibicao: emoji e caractere astral nunca são cortados ao meio', () => {
+  const nome = nomeDeExibicao('😀'.repeat(60) + ' Silva');
+  igual(semParSolto(nome), true, 'sem par solto');
+  igual(pontos(nome) <= NOME_MAXIMO, true, 'limite em caracteres');
+  igual(nome?.endsWith(' S.'), true, 'mantém a inicial');
+  // posição exata do corte caindo no meio de um emoji (primeiro nome de 26 letras + emoji)
+  const corte = nomeDeExibicao('B'.repeat(26) + '😀😀😀 Santos');
+  igual(semParSolto(corte), true, 'corte no limite');
+  igual(pontos(corte) <= NOME_MAXIMO, true, 'limite no corte');
+  // sobrenome que começa com caractere fora do plano básico
+  const astral = nomeDeExibicao('Ana \u{1D49C}lfa');
+  igual(semParSolto(astral), true, 'inicial astral inteira');
+  igual(astral, 'Ana \u{1D49C}.', 'inicial astral');
+});
+
+Deno.test('nomeDeExibicao: acento decomposto conta como um caractere e caracteres de formato somem', () => {
+  const decomposto = 'Jose\u0301 Silva'; // é escrito como e + acento
+  igual(nomeDeExibicao(decomposto), 'José S.', 'normaliza para NFC');
+  const longoDecomposto = nomeDeExibicao('e\u0301'.repeat(28) + ' Silva');
+  igual(pontos(longoDecomposto) <= NOME_MAXIMO, true, 'NFD não estoura o limite');
+  igual(nomeDeExibicao('Ana\u202ESilva'), 'Ana S.', 'inversão de direção vira espaço');
+  igual(nomeDeExibicao('Ana\u200BSilva'), 'Ana S.', 'largura zero vira espaço');
+  igual(nomeDeExibicao('\u202E\u200B'), undefined, 'só formato vira vazio');
+});
+
+Deno.test('nomeDeExibicao: letras de outros alfabetos funcionam', () => {
+  igual(nomeDeExibicao('иван петров'), 'Иван П.', 'cirílico');
+  igual(nomeDeExibicao('李 明'), '李 明.', 'chinês');
+});
