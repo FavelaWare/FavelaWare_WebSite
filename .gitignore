@@ -23,8 +23,8 @@ dist-ssr
 *.sln
 *.sw?
 
-# Configuração local do Claude Code: permissões da máquina e, às vezes, chaves
-.claude/settings.local.json
+# Pastas de agentes e skills: ficam só na máquina, não vão para o git
+.claude/
 
 # Variáveis de ambiente (segredos nunca vão para o repositório)
 .env*
@@ -48,5 +48,4 @@ __pycache__/
 # Imagens soltas na raiz (prints de planilha, artes originais): não vão para o repositório
 /*.png
 
-# Pasta de ferramenta (duplica .claude/skills); a fonte única é .claude/
 .agents/

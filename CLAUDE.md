@@ -15,11 +15,11 @@ O rigor é calibrado pelo risco, em quatro níveis. Invoque a skill `ccma` no in
 
 **Duas coisas nunca saem:** teste que prova a alteração, rodado e com o resultado real relatado, e revisão por quem não escreveu o código. Na dúvida entre dois níveis, vale o mais alto. Pedir "CCMA completo" força o nível 3.
 
-Os papéis são subagentes em `.claude/agents/`. **Planner, reviewer e security-auditor não têm permissão de escrita de propósito**: quem escreve não aprova. O mesmo vale para o `auditor-de-padroes`, que fica fora do fluxo do PR.
+Os papéis são subagentes locais (pasta de agentes, fora do git). **Planner, reviewer e security-auditor não têm permissão de escrita de propósito**: quem escreve não aprova. O mesmo vale para o `auditor-de-padroes`, que fica fora do fluxo do PR.
 
 Subagente só com briefing: objetivo, nível, arquivos tocados, o comando do diff e o que conferir. Nunca "entenda o projeto". O revisor lê o diff e os chamadores, não o repositório inteiro.
 
-Skills de apoio em `.claude/skills/`, invocadas conforme o risco e não por protocolo:
+Skills de apoio (pasta de skills local, fora do git), invocadas conforme o risco e não por protocolo:
 
 | Skill             | Quando                                                                                |
 | ----------------- | ------------------------------------------------------------------------------------- |
@@ -38,7 +38,7 @@ Skills de apoio em `.claude/skills/`, invocadas conforme o risco e não por prot
 | `navegacao-web`, `performance-web`, `web-3d`, `3d-web-experience` | Rotas e menus; bundle e LCP; 3D e WebGL |
 
 O inventário de todos os agentes e skills, com a decisão sobre cada uma, está em `docs/inventario-agentes-e-skills.md`.
-`.claude/skills` é a única fonte; a pasta `.agents/` é de ferramenta e não vai para o git.
+As pastas `.claude/` e `.agents/` ficam só na máquina e não vão para o git.
 
 Fora do fluxo do PR há o agente **`auditor-de-padroes`**: mede a distância entre o código existente e as boas práticas num escopo dado e devolve um plano de migração em ondas. Use ao começar refatoração ou decidir por onde atacar dívida, não como gate de PR (isso é o `reviewer`).
 
