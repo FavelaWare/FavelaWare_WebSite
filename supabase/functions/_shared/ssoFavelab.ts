@@ -3,7 +3,8 @@
  *
  * O portal só assina; quem valida é a função `sso-portal` do Favelab, que guarda
  * apenas a chave pública. Vida de 60 s e `jti` único: o Favelab consome cada
- * `jti` uma vez. Sem dado pessoal no token: só o id do usuário (`sub`) e o papel.
+ * `jti` uma vez. Dado pessoal no token só o mínimo: o id do usuário (`sub`), o papel e o nome de
+ * exibição (primeiro nome e inicial do sobrenome, sem e-mail, turma ou foto).
  */
 
 export const ISSUER_PADRAO = 'favelaware-portal';
@@ -23,6 +24,7 @@ export type PapelNoFavelab = 'student' | 'teacher' | 'admin';
 
 export interface PerfilParaOFavelab {
   papel: string | null;
+  nome?: string | null;
   participante_id: number | string | null;
   precisa_trocar_senha: boolean | null;
   pode_alternar_papel: boolean | null;
@@ -69,12 +71,52 @@ export const lerChaveDoAmbiente = (): ChaveDeAssinatura | null => {
   }
 };
 
+/** Maior nome de exibição (o mesmo limite do apelido no Favelab) */
+export const NOME_MAXIMO = 30;
+
+/**
+ * Nome que o Favelab mostra (ranking, cabeçalho): primeiro nome e inicial do sobrenome, como
+ * manda docs/gamificacao.md para menores ("Maria da Silva Santos" vira "Maria S."). Nome de uma
+ * palavra só fica como está. Sem nome no portal, devolve undefined e o token vai sem a claim.
+ */
+export function nomeDeExibicao(nome: string | null | undefined): string | undefined {
+  // NFC: letra com acento decomposto conta como um caractere só. Controle, formato (inverte a direção do
+  // texto, largura zero) e separador de linha viram espaço.
+  const partes = (nome ?? '')
+    .normalize('NFC')
+    .replace(/[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/gu, ' ')
+    .trim()
+    .split(/\s+/u)
+    .filter(Boolean);
+  if (partes.length === 0) return undefined;
+  // Tudo por caractere (ponto de código), nunca por unidade UTF-16: não corta emoji ao meio
+  const maiuscula = (t: string) => t.toLocaleUpperCase('pt-BR');
+  const cortar = (t: string, n: number) => Array.from(t).slice(0, Math.max(n, 0)).join('');
+  const capitalizar = (t: string) => {
+    const [inicio, ...resto] = Array.from(t);
+    return maiuscula(inicio) + resto.join('').toLocaleLowerCase('pt-BR');
+  };
+  const primeiro = capitalizar(partes[0]);
+  if (partes.length === 1) return cortar(primeiro, NOME_MAXIMO);
+  // A inicial pode ter mais de um caractere (ß vira SS): o espaço dela é reservado antes de cortar o primeiro nome
+  const inicial = maiuscula(Array.from(partes[partes.length - 1])[0]);
+  const sufixo = ` ${inicial}.`;
+  return cortar(primeiro, NOME_MAXIMO - Array.from(sufixo).length) + sufixo;
+}
+
+export interface OpcoesDoToken {
+  /** Nome de exibição (ver nomeDeExibicao); sem ele o token vai sem a claim */
+  nome?: string;
+  /** Hora atual em segundos (injetável nos testes) */
+  agoraS?: number;
+}
+
 /** Assina o token de quem entra no Favelab (`usuarioId` é o id da conta no portal) */
 export async function assinarTokenDoFavelab(
   usuarioId: string,
   papel: PapelNoFavelab,
   chave: ChaveDeAssinatura,
-  agoraS = Math.floor(Date.now() / 1000),
+  { nome, agoraS = Math.floor(Date.now() / 1000) }: OpcoesDoToken = {},
 ): Promise<string> {
   const cabecalho = base64Url(JSON.stringify({ alg: 'EdDSA', typ: 'JWT', kid: chave.kid }));
   const carga = base64Url(
@@ -84,6 +126,7 @@ export async function assinarTokenDoFavelab(
       sub: usuarioId,
       jti: crypto.randomUUID(),
       role: papel,
+      ...(nome ? { name: nome } : {}),
       iat: agoraS,
       nbf: agoraS,
       exp: agoraS + VIDA_DO_TOKEN_S,
