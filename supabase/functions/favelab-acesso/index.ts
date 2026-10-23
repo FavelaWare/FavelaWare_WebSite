@@ -23,7 +23,12 @@
  */
 import { clienteDoUsuario } from '../_shared/drive.ts';
 import { cabecalhosCors, clienteAdmin, criarResposta, servir } from '../_shared/http.ts';
-import { assinarTokenDoFavelab, decidirAcessoAoFavelab, lerChaveDoAmbiente } from '../_shared/ssoFavelab.ts';
+import {
+  assinarTokenDoFavelab,
+  decidirAcessoAoFavelab,
+  lerChaveDoAmbiente,
+  nomeDeExibicao,
+} from '../_shared/ssoFavelab.ts';
 
 const CORS = cabecalhosCors('POST, OPTIONS');
 const resposta = criarResposta(CORS);
@@ -45,7 +50,7 @@ servir('favelab-acesso', CORS, {
     // O perfil é lido com o login do próprio aluno: quem protege o dado é a RLS
     const { data: perfil, error } = await usuario.cliente
       .from('perfis')
-      .select('papel, participante_id, precisa_trocar_senha, pode_alternar_papel')
+      .select('papel, participante_id, precisa_trocar_senha, pode_alternar_papel, nome')
       .eq('id', usuario.usuarioId)
       .maybeSingle();
     if (error) {
@@ -71,7 +76,9 @@ servir('favelab-acesso', CORS, {
       return resposta(403, { erro: SEM_ACESSO });
     }
 
-    const token = await assinarTokenDoFavelab(usuario.usuarioId, decisao.papel, chave);
+    // O nome vem do cadastro do portal; o Favelab nunca pede nome (só o avatar, uma vez)
+    const nome = nomeDeExibicao(perfil?.nome);
+    const token = await assinarTokenDoFavelab(usuario.usuarioId, decisao.papel, chave, { nome });
     console.log('[favelab-acesso] token emitido');
     return resposta(200, { token });
   },
