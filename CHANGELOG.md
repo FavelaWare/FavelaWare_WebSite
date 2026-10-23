@@ -5,6 +5,12 @@ dos commits (Conventional Commits) ou da label `version:*` no PR de release.
 
 Enquanto o site está em desenvolvimento, as versões ficam em 0.x (pré-lançamento). A 1.0.0 é o lançamento.
 
+## [0.6.3] - 2026-10-23
+
+### Restaurado
+
+- A escala para telas 4K e ultrawide e o modo TV (`?tv=1`), removidos na 0.6.2, voltam exatamente como estavam na 0.6.0: a partir de 2560px e 3840px o site e o portal ficam com o aspecto do 1920px. Até 1920px nada muda.
+
 ## [0.6.2] - 2026-10-22
 
 ### Removido
