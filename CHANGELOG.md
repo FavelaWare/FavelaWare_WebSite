@@ -5,6 +5,12 @@ dos commits (Conventional Commits) ou da label `version:*` no PR de release.
 
 Enquanto o site está em desenvolvimento, as versões ficam em 0.x (pré-lançamento). A 1.0.0 é o lançamento.
 
+## [0.6.4] - 2026-10-23
+
+### Adicionado
+
+- O login único do Favelab passa a levar o nome do cadastro do portal (primeiro nome e inicial do sobrenome, ex.: "Maria S."): ninguém digita nome no Favelab, só escolhe o avatar, uma única vez. O token continua sem e-mail, turma ou foto e com vida de 60 s. Nenhuma mudança no site do portal; só a função de acesso.
+
 ## [0.6.3] - 2026-10-23
 
 ### Restaurado
