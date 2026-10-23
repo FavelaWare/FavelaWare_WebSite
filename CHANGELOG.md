@@ -5,6 +5,12 @@ dos commits (Conventional Commits) ou da label `version:*` no PR de release.
 
 Enquanto o site está em desenvolvimento, as versões ficam em 0.x (pré-lançamento). A 1.0.0 é o lançamento.
 
+## [0.7.1] - 2026-10-23
+
+### Corrigido
+
+- A escala de telas grandes ficava exagerada em monitor ultrawide de 28 polegadas (ampliava 33% a partir de 2560px). Agora só telas UHD de verdade (3200x1800 ou mais) crescem, 25%; ultrawide e tudo até 1920px ficam como são. No modo TV, a ampliação em UHD cai de 250% para 175% (issue #98).
+
 ## [0.6.4] - 2026-10-23
 
 ### Adicionado

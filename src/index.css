@@ -113,20 +113,15 @@
 }
 
 /**
- * TELAS GRANDES (issue #60)
+ * TELAS GRANDES (issues #60 e #98)
  * Todo o layout usa rem: aumentar a fonte da raiz amplia o site inteiro sem
- * mexer nos breakpoints. 2560px e 3840px ficam com o mesmo aspecto do
- * 1920px (1,333x e 2x), em vez de conteúdo pequeno no meio da tela.
- * Até 1920px nada muda.
+ * mexer nos breakpoints. Só telas UHD de verdade (3200x1800 ou mais, como TV
+ * e monitor 4K) crescem, e pouco; monitores ultrawide (2560x1080, 3440x1440)
+ * e tudo até 1920px ficam exatamente como são.
  */
-@media (min-width: 2560px) {
+@media (min-width: 3200px) and (min-height: 1800px) {
   html {
-    font-size: 133.333%;
-  }
-}
-@media (min-width: 3840px) {
-  html {
-    font-size: 200%;
+    font-size: 125%;
   }
 }
 
@@ -144,14 +139,9 @@ html[data-tv] {
     font-size: 125%;
   }
 }
-@media (min-width: 2560px) {
+@media (min-width: 3200px) and (min-height: 1800px) {
   html[data-tv] {
-    font-size: 166.667%;
-  }
-}
-@media (min-width: 3840px) {
-  html[data-tv] {
-    font-size: 250%;
+    font-size: 175%;
   }
 }
 html[data-tv] :focus-visible {
