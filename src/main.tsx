@@ -25,6 +25,9 @@ import './index.css';
 // Importa o componente principal da aplicação
 import App from './App.jsx';
 
+// Modo TV (?tv=1): liga antes de pintar, para a tela não pular de tamanho
+import { aplicarModoTv } from './lib/modoTv';
+
 /**
  * RENDERIZAÇÃO DA APLICAÇÃO
  *
@@ -37,6 +40,12 @@ import App from './App.jsx';
  * - Ajuda a encontrar problemas no código
  * - Não afeta a aplicação em produção
  */
+try {
+  aplicarModoTv(document.documentElement, window.location.search, window.localStorage);
+} catch {
+  aplicarModoTv(document.documentElement, window.location.search, null);
+}
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <App />
