@@ -105,10 +105,10 @@ O aluno tem uma barra de vida nos exercícios: **se acerta, não perde vida; se 
 **Quem aparece:** só alunos ativos. Professor, monitor e admin não pontuam e ficam de fora. Aluno
 desativado sai da lista enquanto estiver inativo, mas não perde o saldo.
 
-**Exposição de menores:** no ranking aparece o **nome de exibição** (apelido) que o próprio aluno
-escolhe, nunca o nome completo. Se ele não escolher, aparece só o primeiro nome com a inicial do
-sobrenome. Nada de foto, e-mail ou outro dado pessoal. O aluno ou o responsável pode pedir para ele
-aparecer como "Anônimo", e ele continua pontuando normalmente.
+**Exposição de menores:** no Favelab o nome que aparece (cabeçalho e ranking) é o **nome completo do
+cadastro do portal**, por decisão da gestão (antes era primeiro nome e inicial do sobrenome). Nada de foto,
+e-mail ou outro dado pessoal. O aluno ou o responsável pode pedir para ele aparecer como "Anônimo", e ele
+continua pontuando normalmente. Com nome completo à mostra, convém avisar os responsáveis no termo de uso.
 
 **Quem vê o quê:**
 
