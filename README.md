@@ -126,7 +126,7 @@ scripts/               # importação de planilhas e otimização de imagens
 | `favela-blue` | `#3b82f6` | apoio |
 | `favela-pink` | `#ec4899` | destaques |
 
-Regras de UI na skill `.claude/skills/favelaware-padrao-visual/`.
+Regras de UI na skill local `favelaware-padrao-visual` (pasta de skills, fora do git).
 
 ## Rodar localmente
 
