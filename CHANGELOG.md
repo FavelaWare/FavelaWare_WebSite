@@ -5,6 +5,13 @@ dos commits (Conventional Commits) ou da label `version:*` no PR de release.
 
 Enquanto o site está em desenvolvimento, as versões ficam em 0.x (pré-lançamento). A 1.0.0 é o lançamento.
 
+## [Não lançado]
+
+### Corrigido
+
+- Quem usa "ver como aluno" no portal passa a entrar no Favelab como aluno (antes entrava sempre como administrador). O papel segue a visão do momento: gestor entra como administrador, professor, colaborador e banca como professor, aluno como aluno; parceiro continua sem acesso (issue #99).
+- O Favelab passa a mostrar o nome completo do cadastro do portal ("Lucelho Silva"), não mais primeiro nome e inicial ("Lucelho S."). Nome todo em maiúsculas ou minúsculas é reescrito em caixa de título; acima de 30 caracteres vira primeiro e último nome (issue #100).
+
 ## [0.7.1] - 2026-10-23
 
 ### Corrigido

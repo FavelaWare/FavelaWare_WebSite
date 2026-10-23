@@ -4,7 +4,7 @@
  * O portal só assina; quem valida é a função `sso-portal` do Favelab, que guarda
  * apenas a chave pública. Vida de 60 s e `jti` único: o Favelab consome cada
  * `jti` uma vez. Dado pessoal no token só o mínimo: o id do usuário (`sub`), o papel e o nome de
- * exibição (primeiro nome e inicial do sobrenome, sem e-mail, turma ou foto).
+ * exibição (o nome do cadastro, sem e-mail, turma ou foto).
  */
 
 export const ISSUER_PADRAO = 'favelaware-portal';
@@ -36,18 +36,18 @@ export type DecisaoDeAcesso =
 
 /**
  * Quem entra no Favelab e com que papel. Na dúvida, recusa (falha fechada).
- * - gestor e a conta que alterna papéis (ver como) = administrador, seja qual for a visão do momento;
- * - professor, colaborador e banca = professor;
- * - aluno só com área (participante ligado);
+ * - o papel segue a visão do momento (quem usa "ver como" muda o papel salvo no perfil):
+ *   gestor = administrador, professor, colaborador e banca = professor, aluno = aluno;
+ * - aluno só com área (participante ligado) ou conta que alterna papéis (aluno demonstração);
  * - parceiro não entra;
  * - quem ainda deve trocar a senha conclui o primeiro acesso no portal antes.
  */
 export function decidirAcessoAoFavelab(perfil: PerfilParaOFavelab | null): DecisaoDeAcesso {
   if (!perfil?.papel) return { recusa: 'sem-acesso' };
   if (perfil.precisa_trocar_senha) return { recusa: 'primeiro-acesso' };
-  if (perfil.pode_alternar_papel || perfil.papel === 'gestor') return { papel: 'admin' };
+  if (perfil.papel === 'gestor') return { papel: 'admin' };
   if (['professor', 'colaborador', 'banca'].includes(perfil.papel)) return { papel: 'teacher' };
-  if (perfil.papel === 'aluno' && perfil.participante_id) return { papel: 'student' };
+  if (perfil.papel === 'aluno' && (perfil.participante_id || perfil.pode_alternar_papel)) return { papel: 'student' };
   return { recusa: 'sem-acesso' };
 }
 
@@ -74,10 +74,15 @@ export const lerChaveDoAmbiente = (): ChaveDeAssinatura | null => {
 /** Maior nome de exibição (o mesmo limite do apelido no Favelab) */
 export const NOME_MAXIMO = 30;
 
+/** Partículas que ficam em minúscula quando o nome é reescrito em caixa de título */
+const PARTICULAS = new Set(['da', 'de', 'do', 'das', 'dos', 'e']);
+
 /**
- * Nome que o Favelab mostra (ranking, cabeçalho): primeiro nome e inicial do sobrenome, como
- * manda docs/gamificacao.md para menores ("Maria da Silva Santos" vira "Maria S."). Nome de uma
- * palavra só fica como está. Sem nome no portal, devolve undefined e o token vai sem a claim.
+ * Nome que o Favelab mostra (ranking, cabeçalho): o nome completo do cadastro do portal, como a
+ * pessoa está registrada ("Lucelho Silva"). Espaços repetidos viram um; a grafia é mantida, e só
+ * um nome todo em maiúsculas ou todo em minúsculas é reescrito em caixa de título (da, de, do,
+ * das, dos e e ficam minúsculos). Acima de 30 caracteres vira primeiro e último nome,
+ * cortado no limite. Sem nome no portal, devolve undefined e o token vai sem a claim.
  */
 export function nomeDeExibicao(nome: string | null | undefined): string | undefined {
   // NFC: letra com acento decomposto conta como um caractere só. Controle, formato (inverte a direção do
@@ -90,18 +95,23 @@ export function nomeDeExibicao(nome: string | null | undefined): string | undefi
     .filter(Boolean);
   if (partes.length === 0) return undefined;
   // Tudo por caractere (ponto de código), nunca por unidade UTF-16: não corta emoji ao meio
-  const maiuscula = (t: string) => t.toLocaleUpperCase('pt-BR');
   const cortar = (t: string, n: number) => Array.from(t).slice(0, Math.max(n, 0)).join('');
-  const capitalizar = (t: string) => {
-    const [inicio, ...resto] = Array.from(t);
-    return maiuscula(inicio) + resto.join('').toLocaleLowerCase('pt-BR');
+  const capitalizar = (t: string, indice: number) => {
+    const minuscula = t.toLocaleLowerCase('pt-BR');
+    if (indice > 0 && PARTICULAS.has(minuscula)) return minuscula;
+    const [inicio, ...resto] = Array.from(minuscula);
+    return inicio.toLocaleUpperCase('pt-BR') + resto.join('');
   };
-  const primeiro = capitalizar(partes[0]);
-  if (partes.length === 1) return cortar(primeiro, NOME_MAXIMO);
-  // A inicial pode ter mais de um caractere (ß vira SS): o espaço dela é reservado antes de cortar o primeiro nome
-  const inicial = maiuscula(Array.from(partes[partes.length - 1])[0]);
-  const sufixo = ` ${inicial}.`;
-  return cortar(primeiro, NOME_MAXIMO - Array.from(sufixo).length) + sufixo;
+  const completo = partes.join(' ');
+  const semMistura = completo === completo.toLocaleUpperCase('pt-BR') || completo === completo.toLocaleLowerCase('pt-BR');
+  const grafado = semMistura ? partes.map(capitalizar) : partes;
+  const inteiro = grafado.join(' ');
+  if (Array.from(inteiro).length <= NOME_MAXIMO) return inteiro;
+  if (grafado.length === 1) return cortar(inteiro, NOME_MAXIMO);
+  const ultimo = grafado[grafado.length - 1];
+  const sufixo = ` ${ultimo}`;
+  if (Array.from(sufixo).length >= NOME_MAXIMO) return cortar(inteiro, NOME_MAXIMO);
+  return cortar(grafado[0], NOME_MAXIMO - Array.from(sufixo).length) + sufixo;
 }
 
 export interface OpcoesDoToken {

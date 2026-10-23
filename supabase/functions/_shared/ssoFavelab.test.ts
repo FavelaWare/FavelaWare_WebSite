@@ -79,10 +79,12 @@ Deno.test('decidirAcessoAoFavelab: papel de cada perfil', () => {
   igual(decide({ papel: 'gestor', participante_id: null }), '{"papel":"admin"}', 'gestor');
 });
 
-Deno.test('decidirAcessoAoFavelab: conta que alterna papel é administrador em qualquer visão', () => {
-  for (const papel of ['aluno', 'professor', 'gestor']) {
-    igual(decide({ papel, pode_alternar_papel: true, participante_id: null }), '{"papel":"admin"}', papel);
-  }
+Deno.test('decidirAcessoAoFavelab: conta que alterna papel entra com o papel da visão atual', () => {
+  const alterna = { pode_alternar_papel: true, participante_id: null };
+  igual(decide({ ...alterna, papel: 'aluno' }), '{"papel":"student"}', 'ver como aluno');
+  igual(decide({ ...alterna, papel: 'professor' }), '{"papel":"teacher"}', 'ver como professor');
+  igual(decide({ ...alterna, papel: 'gestor' }), '{"papel":"admin"}', 'ver como gestor');
+  igual(decide({ ...alterna, papel: 'parceiro' }), '{"recusa":"sem-acesso"}', 'ver como parceiro');
 });
 
 Deno.test('decidirAcessoAoFavelab: recusas', () => {
@@ -96,68 +98,58 @@ Deno.test('decidirAcessoAoFavelab: recusas', () => {
 
 Deno.test('token com nome leva a claim name e nada além de id, papel e nome', async () => {
   const { privada, publica } = await par();
-  const token = await assinarTokenDoFavelab(USUARIO, 'teacher', { privada, kid: 'k1' }, { nome: 'Lucelho S.', agoraS: 1_800_000_000 });
+  const token = await assinarTokenDoFavelab(USUARIO, 'teacher', { privada, kid: 'k1' }, { nome: 'Lucelho Silva', agoraS: 1_800_000_000 });
   const [c, p, s] = token.split('.');
   const carga = JSON.parse(new TextDecoder().decode(doBase64Url(p)));
-  igual(carga.name, 'Lucelho S.', 'name');
+  igual(carga.name, 'Lucelho Silva', 'name');
   igual(Object.keys(carga).sort().join(','), 'aud,exp,iat,iss,jti,name,nbf,role,sub', 'sem e-mail, turma ou foto');
   const chave = await crypto.subtle.importKey('jwk', publica, { name: 'Ed25519' }, false, ['verify']);
   igual(await crypto.subtle.verify('Ed25519', chave, doBase64Url(s), new TextEncoder().encode(`${c}.${p}`)), true, 'assinatura');
 });
 
-Deno.test('nomeDeExibicao: primeiro nome e inicial do sobrenome', () => {
-  igual(nomeDeExibicao('Lucelho Silva'), 'Lucelho S.', 'dois nomes');
-  igual(nomeDeExibicao('  maria   da  silva  santos '), 'Maria S.', 'vários nomes e espaços');
-  igual(nomeDeExibicao('JOÃO PEDRO'), 'João P.', 'caixa alta e acento');
-  igual(nomeDeExibicao('ana'), 'Ana', 'uma palavra só');
-  igual(nomeDeExibicao('Ana\nSilva'), 'Ana S.', 'quebra de linha vira espaço');
-  igual(nomeDeExibicao('Ana\u0000Silva'), 'Ana S.', 'caractere nulo vira espaço');
+const pontos = (t: string | undefined) => Array.from(t ?? '').length;
+const semParSolto = (t: string | undefined) => (t ?? '').isWellFormed();
+
+Deno.test('nomeDeExibicao: nome completo do cadastro, grafia mantida', () => {
+  igual(nomeDeExibicao('Lucelho Silva'), 'Lucelho Silva', 'dois nomes');
+  igual(nomeDeExibicao('  Maria   da  Silva  Santos '), 'Maria da Silva Santos', 'espaços repetidos');
+  igual(nomeDeExibicao('Ana'), 'Ana', 'uma palavra só');
+  igual(nomeDeExibicao('Ana\nSilva'), 'Ana Silva', 'quebra de linha vira espaço');
+  igual(nomeDeExibicao('Ana\u0000Silva'), 'Ana Silva', 'caractere nulo vira espaço');
+  igual(nomeDeExibicao('João de McDonald'), 'João de McDonald', 'caixa mista é respeitada');
+});
+
+Deno.test('nomeDeExibicao: tudo em maiúsculas ou minúsculas vira caixa de título', () => {
+  igual(nomeDeExibicao('LUCELHO SILVA'), 'Lucelho Silva', 'maiúsculas');
+  igual(nomeDeExibicao('maria da silva'), 'Maria da Silva', 'minúsculas e partícula');
+  igual(nomeDeExibicao('JOÃO PEDRO DOS SANTOS'), 'João Pedro dos Santos', 'acento e partícula');
+  igual(nomeDeExibicao('иван петров'), 'Иван Петров', 'cirílico');
 });
 
 Deno.test('nomeDeExibicao: sem nome devolve undefined e nunca passa do limite', () => {
   for (const vazio of [undefined, null, '', '   ', '\n\t']) igual(nomeDeExibicao(vazio), undefined, JSON.stringify(vazio));
+  igual(nomeDeExibicao('Ana Paula de Souza Oliveira Pereira Santos'), 'Ana Santos', 'longo vira primeiro e último');
   const longo = nomeDeExibicao('A'.repeat(80) + ' Silva');
-  igual((longo ?? '').length <= NOME_MAXIMO, true, 'limite com sobrenome');
-  igual(longo?.endsWith(' S.'), true, 'mantém a inicial');
-  igual((nomeDeExibicao('B'.repeat(80)) ?? '').length, NOME_MAXIMO, 'uma palavra longa é cortada no limite');
-});
-
-const pontos = (t: string | undefined) => Array.from(t ?? '').length;
-const semParSolto = (t: string | undefined) => (t ?? '').isWellFormed();
-
-Deno.test('nomeDeExibicao: inicial que vira duas letras (ß) nunca passa do limite', () => {
-  const nome = nomeDeExibicao('A'.repeat(40) + ' ßilva');
-  igual(pontos(nome) <= NOME_MAXIMO, true, 'limite');
-  igual(nome?.endsWith(' SS.'), true, 'inicial SS');
-  igual(nomeDeExibicao('Ana ßilva'), 'Ana SS.', 'nome curto com ß');
+  igual(pontos(longo) <= NOME_MAXIMO, true, 'limite com sobrenome');
+  igual(longo?.endsWith(' Silva'), true, 'mantém o último nome');
+  igual(pontos(nomeDeExibicao('B'.repeat(80))), NOME_MAXIMO, 'uma palavra longa é cortada no limite');
+  igual(pontos(nomeDeExibicao('Ana ' + 'C'.repeat(60))), NOME_MAXIMO, 'último nome enorme também respeita o limite');
 });
 
 Deno.test('nomeDeExibicao: emoji e caractere astral nunca são cortados ao meio', () => {
   const nome = nomeDeExibicao('😀'.repeat(60) + ' Silva');
   igual(semParSolto(nome), true, 'sem par solto');
   igual(pontos(nome) <= NOME_MAXIMO, true, 'limite em caracteres');
-  igual(nome?.endsWith(' S.'), true, 'mantém a inicial');
-  // posição exata do corte caindo no meio de um emoji (primeiro nome de 26 letras + emoji)
   const corte = nomeDeExibicao('B'.repeat(26) + '😀😀😀 Santos');
   igual(semParSolto(corte), true, 'corte no limite');
   igual(pontos(corte) <= NOME_MAXIMO, true, 'limite no corte');
-  // sobrenome que começa com caractere fora do plano básico
-  const astral = nomeDeExibicao('Ana \u{1D49C}lfa');
-  igual(semParSolto(astral), true, 'inicial astral inteira');
-  igual(astral, 'Ana \u{1D49C}.', 'inicial astral');
 });
 
 Deno.test('nomeDeExibicao: acento decomposto conta como um caractere e caracteres de formato somem', () => {
-  const decomposto = 'Jose\u0301 Silva'; // é escrito como e + acento
-  igual(nomeDeExibicao(decomposto), 'José S.', 'normaliza para NFC');
+  igual(nomeDeExibicao('Jose\u0301 Silva'), 'José Silva', 'normaliza para NFC');
   const longoDecomposto = nomeDeExibicao('e\u0301'.repeat(28) + ' Silva');
   igual(pontos(longoDecomposto) <= NOME_MAXIMO, true, 'NFD não estoura o limite');
-  igual(nomeDeExibicao('Ana\u202ESilva'), 'Ana S.', 'inversão de direção vira espaço');
-  igual(nomeDeExibicao('Ana\u200BSilva'), 'Ana S.', 'largura zero vira espaço');
+  igual(nomeDeExibicao('Ana\u202ESilva'), 'Ana Silva', 'inversão de direção vira espaço');
+  igual(nomeDeExibicao('Ana\u200BSilva'), 'Ana Silva', 'largura zero vira espaço');
   igual(nomeDeExibicao('\u202E\u200B'), undefined, 'só formato vira vazio');
-});
-
-Deno.test('nomeDeExibicao: letras de outros alfabetos funcionam', () => {
-  igual(nomeDeExibicao('иван петров'), 'Иван П.', 'cirílico');
-  igual(nomeDeExibicao('李 明'), '李 明.', 'chinês');
 });
