@@ -243,3 +243,18 @@ Deno.test('nomeDaTurma: acima do limite encurta a edição e preserva a turma', 
   igual(a !== b, true, 'turmas diferentes continuam diferentes');
   igual(nomeDaTurma('Edição 4 (2027)', 'Turma Única'), 'Edição 4 (2027) · Turma Única', 'nome curto não muda');
 });
+
+Deno.test('turmaParaOFavelab: aceita as relações como lista e só aceita id textual com dígitos', () => {
+  const comLista = { turma_id: 7, turmas: [{ nome: 'Turma 1' }], edicoes: [{ nome: 'Edição 4 (2027)', demonstracao: false }] } as unknown as ParticipanteComTurma;
+  igual(JSON.stringify(turmaParaOFavelab('student', comLista)), JSON.stringify({ id: 7, nome: 'Edição 4 (2027) · Turma 1' }), 'relações em lista');
+  const listaVazia = { turma_id: 7, turmas: [], edicoes: [] } as unknown as ParticipanteComTurma;
+  igual(turmaParaOFavelab('student', listaVazia), undefined, 'lista vazia fica sem turma');
+  const base = { turmas: { nome: 'Turma 1' }, edicoes: { nome: 'Edição 4 (2027)', demonstracao: false } };
+  igual(turmaParaOFavelab('student', { ...base, turma_id: '12' } as ParticipanteComTurma)?.id, 12, 'id textual com dígitos');
+  for (const ruim of [' 5 ', '1e3', '0x10', '-3', '2.5', '', '9'.repeat(20)]) {
+    igual(turmaParaOFavelab('student', { ...base, turma_id: ruim } as ParticipanteComTurma), undefined, `id textual inválido: ${JSON.stringify(ruim)}`);
+  }
+  for (const ruim of [0, -1, 1.5, Number.NaN, Number.MAX_SAFE_INTEGER + 2]) {
+    igual(turmaParaOFavelab('student', { ...base, turma_id: ruim } as ParticipanteComTurma), undefined, `id numérico inválido: ${ruim}`);
+  }
+});

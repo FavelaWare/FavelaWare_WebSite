@@ -146,9 +146,15 @@ export function nomeDaTurma(edicaoNome: string | null | undefined, turmaNome: st
 /** Participante do aluno com a turma e a edição (o que a Edge Function consulta) */
 export interface ParticipanteComTurma {
   turma_id: number | string | null;
-  turmas: { nome: string | null } | null;
-  edicoes: { nome: string | null; demonstracao: boolean | null } | null;
+  turmas: EmbedDaTurma | EmbedDaTurma[] | null;
+  edicoes: EmbedDaEdicao | EmbedDaEdicao[] | null;
 }
+
+type EmbedDaEdicao = { nome: string | null; demonstracao: boolean | null };
+type EmbedDaTurma = { nome: string | null };
+
+/** O PostgREST devolve a relação como objeto (FK muitos-para-um) ou, se a FK mudar, como lista: aceita as duas */
+const primeiro = <T>(valor: T | T[] | null | undefined): T | null => (Array.isArray(valor) ? (valor[0] ?? null) : (valor ?? null));
 
 /**
  * Turma que vai no token. Só aluno ("student") com participante ligado, turma e edição conhecidas,
@@ -160,10 +166,12 @@ export function turmaParaOFavelab(
   participante: ParticipanteComTurma | null | undefined,
 ): { id: number; nome: string } | undefined {
   if (papel !== 'student' || !participante) return undefined;
-  if (!participante.edicoes || participante.edicoes.demonstracao !== false) return undefined;
-  const id = typeof participante.turma_id === 'string' ? Number(participante.turma_id) : participante.turma_id;
+  const edicao = primeiro(participante.edicoes);
+  if (!edicao || edicao.demonstracao !== false) return undefined;
+  const bruto = participante.turma_id;
+  const id = typeof bruto === 'string' ? (/^\d{1,15}$/.test(bruto) ? Number(bruto) : NaN) : bruto;
   if (typeof id !== 'number' || !Number.isSafeInteger(id) || id <= 0) return undefined;
-  const nome = nomeDaTurma(participante.edicoes.nome, participante.turmas?.nome);
+  const nome = nomeDaTurma(edicao.nome, primeiro(participante.turmas)?.nome);
   return nome ? { id, nome } : undefined;
 }
 

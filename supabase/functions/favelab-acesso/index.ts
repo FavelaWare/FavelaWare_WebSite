@@ -92,9 +92,12 @@ servir('favelab-acesso', CORS, {
         .select('turma_id, turmas(nome), edicoes(nome, demonstracao)')
         .eq('id', perfil.participante_id)
         .maybeSingle();
-      if (turmaErr) console.error('[favelab-acesso] falha ao ler a turma', turmaErr.code);
-      else turma = turmaParaOFavelab(decisao.papel, participante as unknown as ParticipanteComTurma | null);
-      console.log('[favelab-acesso] turma', turma ? 'incluída' : 'omitida');
+      if (turmaErr) {
+        console.error('[favelab-acesso] falha ao ler a turma', turmaErr.code);
+      } else {
+        turma = turmaParaOFavelab(decisao.papel, participante as unknown as ParticipanteComTurma | null);
+        console.log('[favelab-acesso] turma', turma ? 'incluída' : 'omitida');
+      }
     }
     const token = await assinarTokenDoFavelab(usuario.usuarioId, decisao.papel, chave, { nome, turma });
     console.log('[favelab-acesso] token emitido');
