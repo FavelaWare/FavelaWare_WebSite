@@ -231,3 +231,15 @@ Deno.test('nomeDeExibicao segue igual depois da extração da limpeza comum', ()
   igual(nomeDeExibicao('José Silva'), 'José Silva', 'NFC');
   igual(nomeDeExibicao('‮​'), undefined, 'vazio');
 });
+
+Deno.test('nomeDaTurma: acima do limite encurta a edição e preserva a turma', () => {
+  const edicaoLonga = 'Edição de nome extremamente longo para o limite do campo ' + 'x'.repeat(40);
+  const a = nomeDaTurma(edicaoLonga, 'Turma 1');
+  const b = nomeDaTurma(edicaoLonga, 'Turma 2');
+  igual(a !== undefined && b !== undefined, true, 'as duas viram texto');
+  igual(Array.from(a!).length <= 60, true, 'respeita o limite de 60');
+  igual(a!.endsWith(' · Turma 1'), true, 'preserva a turma 1');
+  igual(b!.endsWith(' · Turma 2'), true, 'preserva a turma 2');
+  igual(a !== b, true, 'turmas diferentes continuam diferentes');
+  igual(nomeDaTurma('Edição 4 (2027)', 'Turma Única'), 'Edição 4 (2027) · Turma Única', 'nome curto não muda');
+});

@@ -134,7 +134,13 @@ export function nomeDaTurma(edicaoNome: string | null | undefined, turmaNome: st
   const edicao = partesLimpas(edicaoNome).join(' ');
   const turma = partesLimpas(turmaNome).join(' ');
   if (!edicao || !turma) return undefined;
-  return Array.from(`${edicao} · ${turma}`).slice(0, TURMA_NOME_MAXIMO).join('');
+  // Acima do limite quem encurta é a edição: a turma é o que diferencia (duas turmas não podem virar o mesmo texto)
+  const separador = ' · ';
+  const pontosDaTurma = Array.from(turma);
+  if (pontosDaTurma.length >= TURMA_NOME_MAXIMO) return pontosDaTurma.slice(0, TURMA_NOME_MAXIMO).join('');
+  const espacoDaEdicao = TURMA_NOME_MAXIMO - Array.from(separador).length - pontosDaTurma.length;
+  const edicaoCortada = Array.from(edicao).slice(0, Math.max(espacoDaEdicao, 0)).join('').trim();
+  return edicaoCortada ? `${edicaoCortada}${separador}${turma}` : turma;
 }
 
 /** Participante do aluno com a turma e a edição (o que a Edge Function consulta) */
