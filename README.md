@@ -177,6 +177,26 @@ flowchart TD
 | `acessos-alunos` | gestor | cria ou redefine o acesso dos alunos |
 | `convidar-professor` | gestor | convida o instrutor (e liga às turmas) ou o membro da banca por e-mail |
 | `entregas-drive` | aluno e instrutor | envia e lê entregas no Drive da ONG |
+| `favelab-acesso` | conta com acesso ao Favelab | assina o token de SSO de 60 s (ver abaixo) |
+
+### Token de SSO para o Favelab
+
+O Favelab não cadastra turma: ela vem do portal. O token (JWT EdDSA, 60 s, `jti` de uso único) leva
+`sub`, `role`, `name` e, **só para aluno com participante ligado**, duas claims planas:
+
+| Claim | Valor |
+| --- | --- |
+| `turma_id` | inteiro, `turmas.id` (global e estável) |
+| `turma_nome` | texto de 1 a 60 pontos de código, `<edicoes.nome> · <turmas.nome>` (ex.: `Edição 4 (2027) · Turma 1`) |
+
+Sem turma (professor, gestor, colaborador, banca, "ver como aluno" sem participante, edição de
+demonstração, falha da consulta) o token **não leva nenhuma das duas claims** e nunca `turma_id: null`.
+Edição encerrada envia mesmo assim (a matrícula é um fato). O participante vem do perfil do próprio
+usuário, nunca do corpo da requisição.
+
+A claim é opcional: Favelab antigo ignora o que não conhece e Favelab novo sem a claim não mexe em
+nada, então a ordem de deploy é livre. A ordem recomendada é Favelab primeiro, depois o portal, com o
+mapeamento manual das turmas legadas do Favelab feito **antes** de ligar o portal.
 
 ## Banco de dados
 
