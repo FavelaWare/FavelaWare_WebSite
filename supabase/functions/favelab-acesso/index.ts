@@ -9,9 +9,10 @@
  * Rota:
  *   POST /favelab-acesso   (sem corpo, com login do aluno)  ->  { token }
  *
- * Quem entra e com que papel (decidirAcessoAoFavelab): aluno com turma, professor, colaborador,
+ * Quem entra e com que papel (decidirAcessoAoFavelab): aluno com participante ligado, professor, colaborador,
  * banca e gestor. Parceiro não entra. O papel vai assinado no token e o Favelab o aplica a cada
- * acesso. Quem ainda deve trocar a senha conclui o primeiro acesso antes. Conta banida não recebe
+ * acesso. O aluno com participante ligado leva também a turma (`turma_id`, `turma_nome`); os demais,
+ * nenhuma das duas claims. Quem ainda deve trocar a senha conclui o primeiro acesso antes. Conta banida não recebe
  * token. Qualquer dúvida recusa (falha fechada).
  *
  * Segredos (npx supabase secrets set ...), nunca no repositório:
@@ -28,6 +29,8 @@ import {
   decidirAcessoAoFavelab,
   lerChaveDoAmbiente,
   nomeDeExibicao,
+  turmaParaOFavelab,
+  type ParticipanteComTurma,
 } from '../_shared/ssoFavelab.ts';
 
 const CORS = cabecalhosCors('POST, OPTIONS');
@@ -78,7 +81,22 @@ servir('favelab-acesso', CORS, {
 
     // O nome vem do cadastro do portal; o Favelab nunca pede nome (só o avatar, uma vez)
     const nome = nomeDeExibicao(perfil?.nome);
-    const token = await assinarTokenDoFavelab(usuario.usuarioId, decisao.papel, chave, { nome });
+
+    // A turma só vai para aluno com participante ligado. A chave é o participante do perfil do próprio
+    // usuário (nunca o corpo da requisição). Melhor esforço, como o nome: se a consulta falhar, o
+    // token vai sem turma e o acesso não cai.
+    let turma: ReturnType<typeof turmaParaOFavelab>;
+    if (decisao.papel === 'student' && perfil?.participante_id) {
+      const { data: participante, error: turmaErr } = await clienteAdmin()
+        .from('participantes')
+        .select('turma_id, turmas(nome), edicoes(nome, demonstracao)')
+        .eq('id', perfil.participante_id)
+        .maybeSingle();
+      if (turmaErr) console.error('[favelab-acesso] falha ao ler a turma', turmaErr.code);
+      else turma = turmaParaOFavelab(decisao.papel, participante as unknown as ParticipanteComTurma | null);
+      console.log('[favelab-acesso] turma', turma ? 'incluída' : 'omitida');
+    }
+    const token = await assinarTokenDoFavelab(usuario.usuarioId, decisao.papel, chave, { nome, turma });
     console.log('[favelab-acesso] token emitido');
     return resposta(200, { token });
   },
