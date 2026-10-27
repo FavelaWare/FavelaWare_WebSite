@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Páginas públicas do site (as rotas de src/App.tsx fora das áreas logadas) -->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>https://favelaware.com.br/</loc></url>
+  <url><loc>https://favelaware.com.br/sobre</loc></url>
+  <url><loc>https://favelaware.com.br/como-fazemos</loc></url>
+  <url><loc>https://favelaware.com.br/turmas</loc></url>
+  <url><loc>https://favelaware.com.br/galeria</loc></url>
+  <url><loc>https://favelaware.com.br/hall-da-fama</loc></url>
+  <url><loc>https://favelaware.com.br/reconhecimentos</loc></url>
+</urlset>
