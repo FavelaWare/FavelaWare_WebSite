@@ -1,5 +1,5 @@
 // Rodar: npx --yes deno@2.9.6 test supabase/functions/_shared/ssoFavelab.test.ts
-import { assinarTokenDoFavelab, nomeDeExibicao, NOME_MAXIMO, AUDIENCE_FAVELAB, decidirAcessoAoFavelab, ISSUER_PADRAO, lerChaveDoAmbiente, VIDA_DO_TOKEN_S, type PerfilParaOFavelab } from './ssoFavelab.ts';
+import { assinarTokenDoFavelab, nomeDaTurma, nomeDeExibicao, NOME_MAXIMO, AUDIENCE_FAVELAB, decidirAcessoAoFavelab, ISSUER_PADRAO, lerChaveDoAmbiente, turmaParaOFavelab, VIDA_DO_TOKEN_S, type ParticipanteComTurma, type PerfilParaOFavelab } from './ssoFavelab.ts';
 
 const igual = (a: unknown, b: unknown, msg: string) => {
   if (a !== b) throw new Error(`${msg}: esperado ${String(b)}, veio ${String(a)}`);
@@ -33,7 +33,7 @@ Deno.test('token assinado tem as claims que o Favelab exige e assinatura válida
   igual(carga.sub, USUARIO, 'sub');
   igual(carga.role, 'student', 'role');
   igual(carga.exp - carga.iat, VIDA_DO_TOKEN_S, 'vida');
-  igual(Object.keys(carga).sort().join(','), 'aud,exp,iat,iss,jti,nbf,role,sub', 'sem nome, só id e papel');
+  igual(Object.keys(carga).sort().join(','), 'aud,exp,iat,iss,jti,nbf,role,sub', 'sem nome e sem turma, só id e papel');
   const chave = await crypto.subtle.importKey('jwk', publica, { name: 'Ed25519' }, false, ['verify']);
   igual(await crypto.subtle.verify('Ed25519', chave, doBase64Url(s), new TextEncoder().encode(`${c}.${p}`)), true, 'assinatura');
 });
@@ -102,7 +102,7 @@ Deno.test('token com nome leva a claim name e nada além de id, papel e nome', a
   const [c, p, s] = token.split('.');
   const carga = JSON.parse(new TextDecoder().decode(doBase64Url(p)));
   igual(carga.name, 'Lucelho Silva', 'name');
-  igual(Object.keys(carga).sort().join(','), 'aud,exp,iat,iss,jti,name,nbf,role,sub', 'sem e-mail, turma ou foto');
+  igual(Object.keys(carga).sort().join(','), 'aud,exp,iat,iss,jti,name,nbf,role,sub', 'sem e-mail, foto ou turma (nome sem turma)');
   const chave = await crypto.subtle.importKey('jwk', publica, { name: 'Ed25519' }, false, ['verify']);
   igual(await crypto.subtle.verify('Ed25519', chave, doBase64Url(s), new TextEncoder().encode(`${c}.${p}`)), true, 'assinatura');
 });
@@ -152,4 +152,109 @@ Deno.test('nomeDeExibicao: acento decomposto conta como um caractere e caractere
   igual(nomeDeExibicao('Ana\u202ESilva'), 'Ana Silva', 'inversão de direção vira espaço');
   igual(nomeDeExibicao('Ana\u200BSilva'), 'Ana Silva', 'largura zero vira espaço');
   igual(nomeDeExibicao('\u202E\u200B'), undefined, 'só formato vira vazio');
+});
+
+const cargaDe = async (opcoes: Parameters<typeof assinarTokenDoFavelab>[3], papel: 'student' | 'teacher' = 'student') => {
+  const { privada } = await par();
+  const token = await assinarTokenDoFavelab(USUARIO, papel, { privada, kid: 'k1' }, { agoraS: 1_800_000_000, ...opcoes });
+  return JSON.parse(new TextDecoder().decode(doBase64Url(token.split('.')[1])));
+};
+
+Deno.test('token com turma leva turma_id e turma_nome planos e corretos', async () => {
+  const carga = await cargaDe({ nome: 'Ana Silva', turma: { id: 42, nome: 'Edição 4 (2027) · Turma 1' } });
+  igual(carga.turma_id, 42, 'turma_id');
+  igual(typeof carga.turma_id, 'number', 'turma_id é inteiro');
+  igual(carga.turma_nome, 'Edição 4 (2027) · Turma 1', 'turma_nome');
+  igual(Object.keys(carga).sort().join(','), 'aud,exp,iat,iss,jti,name,nbf,role,sub,turma_id,turma_nome', 'só as claims esperadas');
+});
+
+Deno.test('token sem turma mantém as chaves antigas e nunca leva turma_id nulo', async () => {
+  igual(Object.keys(await cargaDe({})).sort().join(','), 'aud,exp,iat,iss,jti,nbf,role,sub', 'sem nada');
+  igual(Object.keys(await cargaDe({ nome: 'Ana' }, 'teacher')).sort().join(','), 'aud,exp,iat,iss,jti,name,nbf,role,sub', 'só nome');
+  igual('turma_id' in (await cargaDe({ turma: undefined })), false, 'turma undefined');
+});
+
+Deno.test('nomeDaTurma: edição e turma, grafia mantida', () => {
+  igual(nomeDaTurma('Edição 4 (2027)', 'Turma 1'), 'Edição 4 (2027) · Turma 1', 'formato');
+  igual(nomeDaTurma('  EDIÇÃO   4 ', ' TURMA\n1 '), 'EDIÇÃO 4 · TURMA 1', 'espaços colapsados, sem caixa de título');
+  igual(nomeDaTurma('Edição 4', null), undefined, 'sem turma');
+  igual(nomeDaTurma(undefined, 'Turma 1'), undefined, 'sem edição');
+  igual(nomeDaTurma('‮​', 'Turma 1'), undefined, 'só formato vira vazio');
+});
+
+Deno.test('nomeDaTurma: sanitização e limite de 60 pontos de código', () => {
+  igual(nomeDaTurma('Edição\u0000 4', 'Tur‮ma​1'), 'Edição 4 · Tur ma 1', 'controle, direção e largura zero viram espaço');
+  igual(nomeDaTurma('Edição', 'Turma 1'), 'Edição · Turma 1', 'NFD vira NFC');
+  igual(pontos(nomeDaTurma('E'.repeat(40), 'T'.repeat(80))), 60, 'corta em 60');
+  const emoji = nomeDaTurma('Edição 4', '😀'.repeat(80));
+  igual(pontos(emoji), 60, 'emoji conta como um ponto');
+  igual(semParSolto(emoji), true, 'sem par solto');
+  const decomposto = nomeDaTurma('Edição', 'é'.repeat(80));
+  igual(pontos(decomposto) <= 60, true, 'NFD não estoura');
+  igual(decomposto === decomposto?.normalize('NFC'), true, 'saída em NFC');
+});
+
+const matricula = (p: Partial<ParticipanteComTurma> = {}): ParticipanteComTurma => ({
+  turma_id: 42,
+  turmas: { nome: 'Turma 1' },
+  edicoes: { nome: 'Edição 4 (2027)', demonstracao: false },
+  ...p,
+});
+const turmaJson = (papel: 'student' | 'teacher' | 'admin', p: ParticipanteComTurma | null | undefined) =>
+  JSON.stringify(turmaParaOFavelab(papel, p) ?? null);
+
+Deno.test('turmaParaOFavelab: aluno matriculado leva a turma', () => {
+  igual(turmaJson('student', matricula()), '{"id":42,"nome":"Edição 4 (2027) · Turma 1"}', 'aluno');
+  igual(turmaJson('student', matricula({ turma_id: '42' })), '{"id":42,"nome":"Edição 4 (2027) · Turma 1"}', 'id como texto');
+});
+
+Deno.test('turmaParaOFavelab: edição encerrada envia mesmo assim (só a demonstração é excluída)', () => {
+  igual(turmaJson('student', matricula({ edicoes: { nome: 'Edição 1 (2022)', demonstracao: false } })), '{"id":42,"nome":"Edição 1 (2022) · Turma 1"}', 'encerrada');
+});
+
+Deno.test('turmaParaOFavelab: sem turma para professor, gestor, ver-como-aluno, demonstração e dado incompleto', () => {
+  igual(turmaJson('teacher', matricula()), 'null', 'professor');
+  igual(turmaJson('admin', matricula()), 'null', 'gestor');
+  igual(turmaJson('student', null), 'null', 'ver como aluno (participante nulo)');
+  igual(turmaJson('student', undefined), 'null', 'participante ausente');
+  igual(turmaJson('student', matricula({ edicoes: { nome: 'Edição de demonstração', demonstracao: true } })), 'null', 'demonstração');
+  igual(turmaJson('student', matricula({ edicoes: { nome: 'X', demonstracao: null } })), 'null', 'demonstração desconhecida (falha fechada)');
+  igual(turmaJson('student', matricula({ edicoes: null })), 'null', 'sem edição');
+  igual(turmaJson('student', matricula({ turmas: null })), 'null', 'sem turma');
+  igual(turmaJson('student', matricula({ turma_id: null })), 'null', 'turma_id nulo');
+  igual(turmaJson('student', matricula({ turma_id: 0 })), 'null', 'turma_id zero');
+  igual(turmaJson('student', matricula({ turma_id: 'abc' })), 'null', 'turma_id inválido');
+});
+
+Deno.test('nomeDeExibicao segue igual depois da extração da limpeza comum', () => {
+  igual(nomeDeExibicao('  maria   da silva​ '), 'Maria da Silva', 'limpeza e caixa de título');
+  igual(nomeDeExibicao('José Silva'), 'José Silva', 'NFC');
+  igual(nomeDeExibicao('‮​'), undefined, 'vazio');
+});
+
+Deno.test('nomeDaTurma: acima do limite encurta a edição e preserva a turma', () => {
+  const edicaoLonga = 'Edição de nome extremamente longo para o limite do campo ' + 'x'.repeat(40);
+  const a = nomeDaTurma(edicaoLonga, 'Turma 1');
+  const b = nomeDaTurma(edicaoLonga, 'Turma 2');
+  igual(a !== undefined && b !== undefined, true, 'as duas viram texto');
+  igual(Array.from(a!).length <= 60, true, 'respeita o limite de 60');
+  igual(a!.endsWith(' · Turma 1'), true, 'preserva a turma 1');
+  igual(b!.endsWith(' · Turma 2'), true, 'preserva a turma 2');
+  igual(a !== b, true, 'turmas diferentes continuam diferentes');
+  igual(nomeDaTurma('Edição 4 (2027)', 'Turma Única'), 'Edição 4 (2027) · Turma Única', 'nome curto não muda');
+});
+
+Deno.test('turmaParaOFavelab: aceita as relações como lista e só aceita id textual com dígitos', () => {
+  const comLista = { turma_id: 7, turmas: [{ nome: 'Turma 1' }], edicoes: [{ nome: 'Edição 4 (2027)', demonstracao: false }] } as unknown as ParticipanteComTurma;
+  igual(JSON.stringify(turmaParaOFavelab('student', comLista)), JSON.stringify({ id: 7, nome: 'Edição 4 (2027) · Turma 1' }), 'relações em lista');
+  const listaVazia = { turma_id: 7, turmas: [], edicoes: [] } as unknown as ParticipanteComTurma;
+  igual(turmaParaOFavelab('student', listaVazia), undefined, 'lista vazia fica sem turma');
+  const base = { turmas: { nome: 'Turma 1' }, edicoes: { nome: 'Edição 4 (2027)', demonstracao: false } };
+  igual(turmaParaOFavelab('student', { ...base, turma_id: '12' } as ParticipanteComTurma)?.id, 12, 'id textual com dígitos');
+  for (const ruim of [' 5 ', '1e3', '0x10', '-3', '2.5', '', '9'.repeat(20)]) {
+    igual(turmaParaOFavelab('student', { ...base, turma_id: ruim } as ParticipanteComTurma), undefined, `id textual inválido: ${JSON.stringify(ruim)}`);
+  }
+  for (const ruim of [0, -1, 1.5, Number.NaN, Number.MAX_SAFE_INTEGER + 2]) {
+    igual(turmaParaOFavelab('student', { ...base, turma_id: ruim } as ParticipanteComTurma), undefined, `id numérico inválido: ${ruim}`);
+  }
 });
