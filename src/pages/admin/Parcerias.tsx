@@ -48,6 +48,8 @@ const Parcerias: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setIdAberto(pedido.id)}
+                aria-haspopup="dialog"
+                aria-label={`Ver o pedido de ${pedido.nome}, ${pedido.empresa}`}
                 className={`${superficie.cartao} flex h-full w-full flex-col p-5 text-left transition hover:border-favela-green-500 hover:shadow-md ${foco}`}
               >
                 <span className={`break-words ${texto.destaque}`}>{pedido.nome}</span>
