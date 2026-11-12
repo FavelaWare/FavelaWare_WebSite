@@ -281,15 +281,15 @@ barreira a mais, marque "Required reviewers": cada deploy passa a pedir um cliqu
 
 | Tipo | Nome | Valor |
 | --- | --- | --- |
-| secret | `FTP_SERVIDOR` | nome do servidor de FTP (sem `ftp://`). Precisa ser um nome coberto pelo certificado, não o IP |
-| secret | `FTP_USUARIO` | usuário de FTP. De preferência uma conta só do site, limitada à pasta dele |
-| secret | `FTP_SENHA` | senha de FTP |
+| secret | `FTP_SERVER` | nome do servidor de FTP (sem `ftp://`). Precisa ser um nome coberto pelo certificado, não o IP |
+| secret | `FTP_USERNAME` | usuário de FTP. De preferência uma conta só do site, limitada à pasta dele |
+| secret | `FTP_PASSWORD` | senha de FTP |
 | variable | `FTP_DIRETORIO_REMOTO` | pasta do site vista por essa conta de FTP (`public_html`, ou `.` se a conta já abre dentro dela) |
 
 A senha é cadastrada pelo terminal, sem colar em lugar nenhum (o `gh` pergunta o valor):
 
 ```bash
-gh secret set FTP_SENHA --env production
+gh secret set FTP_PASSWORD --env production
 ```
 
 Para descobrir o nome que o certificado do servidor cobre (não pede senha):
@@ -298,7 +298,9 @@ Para descobrir o nome que o certificado do servidor cobre (não pede senha):
 openssl s_client -connect <servidor>:21 -starttls ftp </dev/null | openssl x509 -noout -subject -ext subjectAltName
 ```
 
-Se o certificado não cobrir o nome escolhido, use o nome que ele cobre. Nunca desligue a conferência.
+Hoje `FTP_SERVER` guarda o IP, e por isso o deploy confere só a validade do certificado, não o nome
+do servidor (`ssl:check-hostname no`). Para religar a conferência do nome, cadastre em `FTP_SERVER`
+o nome que o certificado cobre e volte a opção para `yes` no `deploy.yml`.
 
 **3. Variables do repositório** (Settings > Secrets and variables > Actions > Variables). São os
 valores públicos do site, os mesmos do `.env.local`: `VITE_SUPABASE_URL`,
