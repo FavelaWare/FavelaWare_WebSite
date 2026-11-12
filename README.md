@@ -281,15 +281,15 @@ barreira a mais, marque "Required reviewers": cada deploy passa a pedir um cliqu
 
 | Tipo | Nome | Valor |
 | --- | --- | --- |
-| secret | `FTP_SERVIDOR` | nome do servidor de FTP (sem `ftp://`). Precisa ser um nome coberto pelo certificado, não o IP |
-| secret | `FTP_USUARIO` | usuário de FTP. De preferência uma conta só do site, limitada à pasta dele |
-| secret | `FTP_SENHA` | senha de FTP |
+| secret | `FTP_SERVER` | nome do servidor de FTP (sem `ftp://`). Precisa ser um nome coberto pelo certificado, não o IP |
+| secret | `FTP_USERNAME` | usuário de FTP. De preferência uma conta só do site, limitada à pasta dele |
+| secret | `FTP_PASSWORD` | senha de FTP |
 | variable | `FTP_DIRETORIO_REMOTO` | pasta do site vista por essa conta de FTP (`public_html`, ou `.` se a conta já abre dentro dela) |
 
 A senha é cadastrada pelo terminal, sem colar em lugar nenhum (o `gh` pergunta o valor):
 
 ```bash
-gh secret set FTP_SENHA --env production
+gh secret set FTP_PASSWORD --env production
 ```
 
 Para descobrir o nome que o certificado do servidor cobre (não pede senha):

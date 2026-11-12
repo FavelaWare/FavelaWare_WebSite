@@ -21,8 +21,9 @@ name: Deploy
 # Configuração (passo a passo no README, seção "Publicação"):
 #   variables do repositório:        VITE_SUPABASE_URL, VITE_SUPABASE_PUBLISHABLE_KEY,
 #                                    VITE_FAVELAB_URL (valores públicos do site)
-#   environment production (só main): secrets FTP_SERVIDOR, FTP_USUARIO, FTP_SENHA
-#                                    e variable FTP_DIRETORIO_REMOTO
+#   secrets FTP_SERVER, FTP_USERNAME, FTP_PASSWORD (no repositório ou no
+#   environment production, que só a main usa)
+#   variable FTP_DIRETORIO_REMOTO (environment production)
 #
 # Os dois jobs rodam em runner do GitHub, nunca em runner próprio: o CI roda
 # código de PR, e um runner persistente guardaria o que esse código deixou.
@@ -211,9 +212,9 @@ jobs:
       - name: Validar configuração do FTP
         if: steps.ponta.outputs.publicar == 'true'
         env:
-          FTP_SERVIDOR: ${{ secrets.FTP_SERVIDOR }}
-          FTP_USUARIO: ${{ secrets.FTP_USUARIO }}
-          FTP_SENHA: ${{ secrets.FTP_SENHA }}
+          FTP_SERVIDOR: ${{ secrets.FTP_SERVER }}
+          FTP_USUARIO: ${{ secrets.FTP_USERNAME }}
+          FTP_SENHA: ${{ secrets.FTP_PASSWORD }}
           FTP_DIRETORIO_REMOTO: ${{ vars.FTP_DIRETORIO_REMOTO }}
         run: |
           set -euo pipefail
@@ -261,9 +262,9 @@ jobs:
       - name: Publicar por FTP com TLS
         if: steps.ponta.outputs.publicar == 'true'
         env:
-          FTP_SERVIDOR: ${{ secrets.FTP_SERVIDOR }}
-          FTP_USUARIO: ${{ secrets.FTP_USUARIO }}
-          LFTP_PASSWORD: ${{ secrets.FTP_SENHA }}
+          FTP_SERVIDOR: ${{ secrets.FTP_SERVER }}
+          FTP_USUARIO: ${{ secrets.FTP_USERNAME }}
+          LFTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
           FTP_DIRETORIO_REMOTO: ${{ vars.FTP_DIRETORIO_REMOTO }}
         run: |
           set -euo pipefail
