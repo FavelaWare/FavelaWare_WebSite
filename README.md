@@ -213,6 +213,7 @@ Todas as tabelas com RLS, testadas em `supabase/testes/`.
 | `trilhas`, `conteudos`, `conteudos_turma`, `materiais` | trilhas e material |
 | `atividades`, `tentativas`, `arquivos_entrega` | atividades e entregas |
 | `solicitacoes`, `mensagens_solicitacao` | pedidos dos alunos e a conversa com a coordenação |
+| `pedidos_de_parceria` | pedidos do formulário público "Seja um parceiro" (só o gestor lê) |
 
 ## Git-flow
 
@@ -254,6 +255,75 @@ bash .github/scripts/provisionar-governanca.sh
 Só o time `mantenedores-site` faz bypass. Todo o resto, inclusive os donos da organização, precisa
 da aprovação do code owner definido em `.github/CODEOWNERS`. O back-merge e o versionamento
 empurram com o secret `GH_TOKEN`, um token de quem está no time.
+
+## Publicação
+
+O workflow `Deploy` (`.github/workflows/deploy.yml`) publica o site na Hostinger por FTP com TLS:
+
+- **Automático:** quando a `main` recebe um merge e o `CI` termina verde. Com CI vermelho, nada sobe.
+- **Manual:** Actions > Deploy > Run workflow, a partir da `main`. Por padrão só simula (lista o que
+  enviaria); desmarque "simular" para publicar de verdade. Publica a ponta da `main` sem olhar o CI.
+
+Nada é apagado no servidor, e o `index.html` sobe por último. Arquivo retirado do repositório
+continua no ar até ser apagado à mão no servidor. Para voltar uma versão, faça um PR de revert: o
+deploy publica o que estiver na `main`.
+
+O build e o envio são jobs separados: só o envio enxerga a senha do FTP, e ele não roda `npm`.
+
+### Configuração (uma vez, nesta ordem)
+
+**1. Environment antes de qualquer secret.** Em Settings > Environments, crie `production` e, em
+"Deployment branches and tags", escolha "Selected branches" e deixe só a `main`. Sem essa restrição,
+qualquer pessoa com permissão de escrita lê a senha a partir de uma branch própria. Se quiser uma
+barreira a mais, marque "Required reviewers": cada deploy passa a pedir um clique de aprovação.
+
+**2. Secrets e variable do environment `production`:**
+
+| Tipo | Nome | Valor |
+| --- | --- | --- |
+| secret | `FTP_SERVIDOR` | nome do servidor de FTP (sem `ftp://`). Precisa ser um nome coberto pelo certificado, não o IP |
+| secret | `FTP_USUARIO` | usuário de FTP. De preferência uma conta só do site, limitada à pasta dele |
+| secret | `FTP_SENHA` | senha de FTP |
+| variable | `FTP_DIRETORIO_REMOTO` | pasta do site vista por essa conta de FTP (`public_html`, ou `.` se a conta já abre dentro dela) |
+
+A senha é cadastrada pelo terminal, sem colar em lugar nenhum (o `gh` pergunta o valor):
+
+```bash
+gh secret set FTP_SENHA --env production
+```
+
+Para descobrir o nome que o certificado do servidor cobre (não pede senha):
+
+```bash
+openssl s_client -connect <servidor>:21 -starttls ftp </dev/null | openssl x509 -noout -subject -ext subjectAltName
+```
+
+Se o certificado não cobrir o nome escolhido, use o nome que ele cobre. Nunca desligue a conferência.
+
+**3. Variables do repositório** (Settings > Secrets and variables > Actions > Variables). São os
+valores públicos do site, os mesmos do `.env.local`: `VITE_SUPABASE_URL`,
+`VITE_SUPABASE_PUBLISHABLE_KEY` e `VITE_FAVELAB_URL`.
+
+### Primeira publicação
+
+O deploy manual só aparece depois que o `deploy.yml` chega à `main`, e esse mesmo merge já dispara
+um deploy automático de verdade.
+
+**Antes do merge:**
+
+1. Crie uma pasta de teste no servidor (ex.: `public_html/_deploy-teste`) e aponte
+   `FTP_DIRETORIO_REMOTO` para ela. O primeiro deploy automático cai nessa pasta, não no site.
+
+**Depois do merge, com o primeiro deploy automático concluído:**
+
+2. Confira a pasta pelo gerenciador de arquivos da hospedagem: devem estar lá o `index.html`, o
+   `.htaccess` e a pasta `assets/`. Abrir a pasta de teste no navegador mostra tela em branco, e
+   isso é esperado (o site foi feito para a raiz do domínio).
+3. Rode o deploy manual simulando para ver a lista do que seria enviado.
+4. Troque `FTP_DIRETORIO_REMOTO` para a pasta real do site, rode o deploy manual sem simular e
+   apague a pasta de teste.
+
+Se faltar algum valor, o deploy falha logo no começo dizendo qual, e nada é enviado.
 
 ## Problemas comuns
 

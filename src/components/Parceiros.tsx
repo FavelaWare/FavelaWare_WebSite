@@ -6,12 +6,15 @@
  * Grade de logos dos parceiros, com animação escalonada.
  * Se a imagem não carregar, o cartão mostra o emoji do parceiro.
  * Dados em src/data/parceiros.ts (os mesmos da página Sobre).
+ * Abaixo da grade, o botão "Seja um parceiro" leva ao formulário (/seja-parceiro).
  */
 import { useState } from 'react';
 import { motion, type Variants } from 'framer-motion';
+import { Link } from 'react-router-dom';
 
 import { parceiros } from '../data/parceiros';
 import type { Parceiro } from '../types';
+import { classeBotaoDestaque } from './estilosDoSite';
 
 /** Logo do parceiro; se a imagem falhar, mostra o emoji */
 const LogoDoParceiro: React.FC<{ parceiro: Parceiro }> = ({ parceiro }) => {
@@ -133,6 +136,13 @@ const Parceiros: React.FC = () => {
             </motion.div>
           ))}
         </motion.div>
+
+        {/* Convite para novos parceiros: leva ao formulário */}
+        <div className="mt-12 text-center">
+          <Link to="/seja-parceiro" className={classeBotaoDestaque}>
+            Seja um parceiro
+          </Link>
+        </div>
       </div>
     </section>
   );
