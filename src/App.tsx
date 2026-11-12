@@ -40,6 +40,7 @@ const ComoFazemos = lazy(() => import('./pages/ComoFazemos')); // Trilhas de ens
 const Sobre = lazy(() => import('./pages/Sobre')); // Sobre o projeto
 const HallDaFama = lazy(() => import('./pages/HallDaFama')); // Equipes anteriores
 const Reconhecimentos = lazy(() => import('./pages/Reconhecimentos')); // Prêmios
+const SejaParceiro = lazy(() => import('./pages/SejaParceiro')); // Formulário de quem quer ser parceiro
 const Login = lazy(() => import('./pages/Login')); // Login (traz o Supabase)
 const Turmas = lazy(() => import('./pages/Turmas')); // Lista de turmas
 const TurmaDetalhe = lazy(() => import('./pages/TurmaDetalhe')); // Alunos de uma turma (/turmas/:slug)
@@ -60,6 +61,7 @@ const AdminChamada = lazy(() => import('./pages/admin/Chamada'));
 const AdminTurmas = lazy(() => import('./pages/admin/Turmas'));
 const AdminEquipe = lazy(() => import('./pages/admin/Equipe'));
 const AdminSolicitacoes = lazy(() => import('./pages/admin/Solicitacoes'));
+const AdminParcerias = lazy(() => import('./pages/admin/Parcerias')); // Pedidos do formulário "Seja um parceiro"
 const AdminPresencaProfessores = lazy(() => import('./pages/admin/PresencaProfessores'));
 const AdminMembros = lazy(() => import('./pages/admin/Membros')); // Equipe: todos os membros e a função de cada um
 const AdminAvaliacoes = lazy(() => import('./pages/admin/Avaliacoes')); // Avaliação final: instrutores, banca e resultado
@@ -102,6 +104,7 @@ const preCarregarSitePublico = () => {
     () => import('./pages/Sobre'),
     () => import('./pages/HallDaFama'),
     () => import('./pages/Reconhecimentos'),
+    () => import('./pages/SejaParceiro'),
     () => import('./pages/Turmas'),
     () => import('./pages/TurmaDetalhe'),
     () => import('./pages/Galeria'),
@@ -163,6 +166,9 @@ const App: React.FC = () => {
               {/* Rota da página Reconhecimentos (/reconhecimentos) */}
               <Route path="/reconhecimentos" element={<Reconhecimentos />} />
 
+              {/* Rota do formulário "Seja um parceiro" (/seja-parceiro) */}
+              <Route path="/seja-parceiro" element={<SejaParceiro />} />
+
               {/* Contato saiu do site: os dados ficam no rodapé. O 301 de verdade
                   (para o Google) está no public/.htaccess; aqui é para o npm run dev */}
               <Route path="/contato" element={<Navigate to="/" replace />} />
@@ -199,6 +205,7 @@ const App: React.FC = () => {
                 <Route path="turmas" element={<AdminTurmas />} />
                 <Route path="equipe" element={<AdminEquipe />} />
                 <Route path="solicitacoes" element={<AdminSolicitacoes />} />
+                <Route path="parcerias" element={<AdminParcerias />} />
                 <Route path="presenca-professores" element={<AdminPresencaProfessores />} />
                 <Route path="avaliacoes" element={<AdminAvaliacoes />} />
                 <Route path="membros" element={<AdminMembros />} />

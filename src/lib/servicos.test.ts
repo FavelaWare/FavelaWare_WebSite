@@ -84,6 +84,10 @@ describe('sessão: área de cada papel', () => {
     }
     for (const caminho of ['/dashboard', '/dashboard/alunos', '/dashboard/chamada', '/dashboard/perfil'])
       expect(abre('parceiro', caminho)).toBe(true);
+    // Pedidos de parceria trazem contato de gente de fora: só o gestor abre
+    expect(abre('gestor', '/dashboard/parcerias')).toBe(true);
+    expect(abre('colaborador', '/dashboard/parcerias')).toBe(false);
+    expect(abre('parceiro', '/dashboard/parcerias')).toBe(false);
   });
 
   it('gestor e professor vão para a área deles', () => {

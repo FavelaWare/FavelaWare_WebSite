@@ -213,6 +213,7 @@ Todas as tabelas com RLS, testadas em `supabase/testes/`.
 | `trilhas`, `conteudos`, `conteudos_turma`, `materiais` | trilhas e material |
 | `atividades`, `tentativas`, `arquivos_entrega` | atividades e entregas |
 | `solicitacoes`, `mensagens_solicitacao` | pedidos dos alunos e a conversa com a coordenação |
+| `pedidos_de_parceria` | pedidos do formulário público "Seja um parceiro" (só o gestor lê) |
 
 ## Git-flow
 
