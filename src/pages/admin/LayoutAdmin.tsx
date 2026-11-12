@@ -31,6 +31,7 @@ import {
   IconeAlunos,
   IconeAvaliacao,
   IconeEquipe,
+  IconeLink,
   IconeMaterial,
   IconeMembros,
   IconeSolicitacoes,
@@ -73,6 +74,8 @@ const ITENS_MENU: ItemMenu[] = [
   },
   { caminho: '/dashboard/membros', rotulo: 'Equipe', Icone: IconeMembros },
   { caminho: '/dashboard/solicitacoes', rotulo: 'Solicitações', Icone: IconeSolicitacoes },
+  // Só do gestor: fora da lista de parceiro e colaborador em lib/sessao.ts
+  { caminho: '/dashboard/parcerias', rotulo: 'Parcerias', Icone: IconeLink },
   { caminho: '/dashboard/avaliacoes', rotulo: 'Avaliações', Icone: IconeAvaliacao },
   // Materiais e atividades juntos, em abas dentro de cada trilha
   { caminho: '/dashboard/trilhas', rotulo: 'Trilhas', Icone: IconeMaterial },
@@ -117,6 +120,7 @@ const preCarregarPaginas = () =>
     import('./Turmas'),
     import('./Equipe'),
     import('./Solicitacoes'),
+    import('./Parcerias'),
     import('./PresencaProfessores'),
     import('./Avaliacoes'),
     import('./Membros'),
