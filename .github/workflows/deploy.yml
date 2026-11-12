@@ -1,0 +1,328 @@
+name: Deploy
+
+# Publica o site na Hostinger (FTP com TLS) quando a main recebe um merge.
+#
+# - Automático: roda depois que o workflow `CI` termina VERDE num push da main.
+#   Com CI vermelho nada é publicado, mesmo que o merge tenha sido feito com bypass.
+# - Manual (Actions > Deploy > Run workflow, na main): republica a ponta da main
+#   SEM olhar o CI. Por padrão só SIMULA (lista o que enviaria); desmarque
+#   "simular" para publicar.
+#
+# São dois jobs de propósito:
+#   build     instala as dependências e gera o site. Não tem segredo nenhum.
+#   publicar  só baixa o site pronto e envia. É o único que vê a senha do FTP,
+#             e não roda npm: uma dependência comprometida não chega à senha.
+#
+# Nada é apagado no servidor: o que só existe lá (arquivos postos à mão, pastas
+# de e-mail) fica, e os arquivos antigos com hash continuam servindo as abas
+# abertas. Arquivo retirado do repositório continua no ar até ser apagado à mão.
+# O index.html sobe por último, então nunca aponta para arquivo que ainda não chegou.
+#
+# Configuração (passo a passo no README, seção "Publicação"):
+#   variables do repositório:        VITE_SUPABASE_URL, VITE_SUPABASE_PUBLISHABLE_KEY,
+#                                    VITE_FAVELAB_URL (valores públicos do site)
+#   environment production (só main): secrets FTP_SERVIDOR, FTP_USUARIO, FTP_SENHA
+#                                    e variable FTP_DIRETORIO_REMOTO
+#
+# Os dois jobs rodam em runner do GitHub, nunca em runner próprio: o CI roda
+# código de PR, e um runner persistente guardaria o que esse código deixou.
+#
+# O repositório é público, então o log também é: nenhum passo imprime valor de
+# secret, e a senha nunca entra em linha de comando.
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      simular:
+        description: Só simular (lista o que seria enviado, sem publicar)
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+env:
+  # true = não envia nada. No automático é sempre false.
+  SIMULAR: ${{ github.event_name == 'workflow_dispatch' && inputs.simular }}
+
+jobs:
+  build:
+    # O CI também roda em PR (inclusive de fork): só segue se o CI que terminou
+    # foi o de um push na main deste repositório.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.head_repository.full_name == github.repository)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      publicar: ${{ steps.ponta.outputs.publicar }}
+      sha: ${{ steps.ponta.outputs.sha }}
+      versao: ${{ steps.conferir.outputs.versao }}
+      commit: ${{ steps.conferir.outputs.commit }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          # No workflow_run, github.sha é a ponta da branch padrão, não o commit
+          # que o CI testou: publica exatamente o que passou no CI.
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          persist-credentials: false
+
+      # Sem a configuração completa o site subiria sem login (o código trata o
+      # Supabase ausente como desligado). Só o nome de quem falta vai para o log.
+      - name: Validar configuração do site
+        env:
+          EVENTO: ${{ github.event_name }}
+          REFERENCIA: ${{ github.ref }}
+          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
+          VITE_FAVELAB_URL: ${{ vars.VITE_FAVELAB_URL }}
+        run: |
+          set -euo pipefail
+          falhou=0
+          # Aviso para quem dispara à mão. Quem protege os secrets de outra branch
+          # é a restrição do environment production, não esta conferência.
+          if [[ "$EVENTO" == "workflow_dispatch" && "$REFERENCIA" != "refs/heads/main" ]]; then
+            echo "::error::O deploy manual só roda a partir da main."
+            falhou=1
+          fi
+          for nome in VITE_SUPABASE_URL VITE_SUPABASE_PUBLISHABLE_KEY VITE_FAVELAB_URL; do
+            if [[ -z "${!nome:-}" ]]; then
+              echo "::error::Falta a variable $nome no repositório (ver README, Publicação)."
+              falhou=1
+            fi
+          done
+          for nome in VITE_SUPABASE_URL VITE_FAVELAB_URL; do
+            if [[ -n "${!nome:-}" && "${!nome}" != https://* ]]; then
+              echo "::error::$nome precisa começar com https://"
+              falhou=1
+            fi
+          done
+          exit "$falhou"
+
+      # Reexecutar o CI de um commit antigo dispararia este workflow de novo e
+      # poria a versão antiga no ar. Só a ponta da main é publicada.
+      - name: Conferir que é a ponta da main
+        id: ponta
+        run: |
+          set -euo pipefail
+          ponta="$(git ls-remote origin refs/heads/main | cut -f1)"
+          [[ -n "$ponta" ]] || { echo "::error::Não foi possível ler a ponta da main."; exit 1; }
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          if [[ "$(git rev-parse HEAD)" == "$ponta" ]]; then
+            echo "publicar=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::Este commit não é mais a ponta da main: nada será publicado."
+            echo "publicar=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Sem cache de propósito: este job produz o que vai para o ar.
+      - name: Setup Node
+        if: steps.ponta.outputs.publicar == 'true'
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+
+      - name: Instalar
+        if: steps.ponta.outputs.publicar == 'true'
+        run: npm ci
+
+      - name: Build
+        if: steps.ponta.outputs.publicar == 'true'
+        env:
+          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
+          VITE_FAVELAB_URL: ${{ vars.VITE_FAVELAB_URL }}
+        run: npm run build
+
+      - name: Conferir o build
+        id: conferir
+        if: steps.ponta.outputs.publicar == 'true'
+        env:
+          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
+        run: |
+          set -euo pipefail
+          for arquivo in dist/index.html dist/.htaccess; do
+            [[ -s "$arquivo" ]] || { echo "::error::O build não gerou $arquivo"; exit 1; }
+          done
+          # Prova que a configuração entrou no site (senão ele subiria sem login)
+          grep -rqF "$VITE_SUPABASE_URL" dist/assets ||
+            { echo "::error::O endereço do Supabase não está no build."; exit 1; }
+          echo "Build conferido: $(find dist -type f | wc -l) arquivos."
+          echo "versao=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+          echo "commit=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+
+      # include-hidden-files: sem isto o .htaccess (arquivo oculto) ficaria de fora
+      - name: Guardar o site pronto
+        if: steps.ponta.outputs.publicar == 'true'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: site
+          path: dist
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 1
+
+  publicar:
+    needs: build
+    if: needs.build.outputs.publicar == 'true'
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 20
+    # Um envio por vez, e o que começou termina: cancelar no meio deixaria o
+    # servidor com metade dos arquivos novos. A simulação tem fila própria para
+    # não tirar da espera uma publicação de verdade.
+    concurrency:
+      group: ${{ (github.event_name == 'workflow_dispatch' && inputs.simular) && 'deploy-simulacao' || 'deploy-producao' }}
+      cancel-in-progress: false
+    steps:
+      # De novo, agora na hora de enviar: entre o build e o envio pode ter
+      # entrado outro merge, e este job pode ser reexecutado sozinho (ou ficar
+      # esperando aprovação) muito depois do build. Versão antiga não sobe.
+      - name: Conferir de novo que é a ponta da main
+        id: ponta
+        env:
+          SHA_DO_BUILD: ${{ needs.build.outputs.sha }}
+          REPOSITORIO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          ponta="$(git ls-remote "https://github.com/$REPOSITORIO" refs/heads/main | cut -f1)"
+          [[ -n "$ponta" && -n "$SHA_DO_BUILD" ]] || { echo "::error::Não foi possível conferir a ponta da main."; exit 1; }
+          if [[ "$SHA_DO_BUILD" == "$ponta" ]]; then
+            echo "publicar=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::A main já avançou desde este build: nada foi enviado."
+            echo "publicar=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Baixar o site pronto
+        if: steps.ponta.outputs.publicar == 'true'
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: site
+          path: dist
+
+      - name: Validar configuração do FTP
+        if: steps.ponta.outputs.publicar == 'true'
+        env:
+          FTP_SERVIDOR: ${{ secrets.FTP_SERVIDOR }}
+          FTP_USUARIO: ${{ secrets.FTP_USUARIO }}
+          FTP_SENHA: ${{ secrets.FTP_SENHA }}
+          FTP_DIRETORIO_REMOTO: ${{ vars.FTP_DIRETORIO_REMOTO }}
+        run: |
+          set -euo pipefail
+          falhou=0
+          # Só o nome de quem falta vai para o log, nunca o valor
+          for nome in FTP_SERVIDOR FTP_USUARIO FTP_SENHA FTP_DIRETORIO_REMOTO; do
+            if [[ -z "${!nome:-}" ]]; then
+              echo "::error::Falta $nome no environment production (ver README, Publicação)."
+              falhou=1
+            fi
+          done
+          # O servidor é um nome (o certificado é conferido contra ele), sem protocolo nem caminho
+          if [[ -n "${FTP_SERVIDOR:-}" && ! "$FTP_SERVIDOR" =~ ^[A-Za-z0-9.-]+$ ]]; then
+            echo "::error::FTP_SERVIDOR deve ser só o nome do servidor, sem ftp:// e sem barra."
+            falhou=1
+          fi
+          # Usuário e caminho simples: sem aspas, espaço ou ".." (eles entram no roteiro do lftp)
+          if [[ -n "${FTP_USUARIO:-}" && ! "$FTP_USUARIO" =~ ^[A-Za-z0-9._-]+$ ]]; then
+            echo "::error::FTP_USUARIO tem caractere que o deploy não aceita."
+            falhou=1
+          fi
+          if [[ -n "${FTP_DIRETORIO_REMOTO:-}" ]] &&
+            { [[ ! "$FTP_DIRETORIO_REMOTO" =~ ^[A-Za-z0-9._/-]+$ ]] || [[ "$FTP_DIRETORIO_REMOTO" == *..* ]]; }; then
+            echo "::error::FTP_DIRETORIO_REMOTO deve ser um caminho simples (ex.: public_html ou .)."
+            falhou=1
+          fi
+          for arquivo in dist/index.html dist/.htaccess; do
+            [[ -s "$arquivo" ]] || { echo "::error::O site pronto veio sem $arquivo"; falhou=1; }
+          done
+          exit "$falhou"
+
+      # A imagem do GitHub não traz o lftp
+      - name: Instalar lftp
+        if: steps.ponta.outputs.publicar == 'true'
+        run: |
+          set -euo pipefail
+          sudo -n apt-get update -qq
+          sudo -n apt-get install -y -qq --no-install-recommends lftp
+          command -v lftp >/dev/null || { echo "::error::lftp ausente no runner"; exit 1; }
+
+      # A senha vai só no ambiente deste passo (LFTP_PASSWORD), e os comandos
+      # entram pela entrada padrão: nada de credencial em linha de comando.
+      # O lftp guarda histórico no home dele: fica no RUNNER_TEMP e é apagado
+      # no passo seguinte, mesmo com falha.
+      - name: Publicar por FTP com TLS
+        if: steps.ponta.outputs.publicar == 'true'
+        env:
+          FTP_SERVIDOR: ${{ secrets.FTP_SERVIDOR }}
+          FTP_USUARIO: ${{ secrets.FTP_USUARIO }}
+          LFTP_PASSWORD: ${{ secrets.FTP_SENHA }}
+          FTP_DIRETORIO_REMOTO: ${{ vars.FTP_DIRETORIO_REMOTO }}
+        run: |
+          set -euo pipefail
+          export LFTP_HOME="$RUNNER_TEMP/lftp"
+          mkdir -p "$LFTP_HOME"
+
+          if [[ "$SIMULAR" == "true" ]]; then
+            echo "Simulação: lista o que seria enviado, sem publicar."
+            opcao_simular="--dry-run"
+            enviar_index='echo "Simulação: index.html não enviado."'
+          else
+            echo "Publicando $(find dist -type f | wc -l) arquivos."
+            opcao_simular=""
+            enviar_index="put -O . dist/index.html"
+          fi
+
+          # TLS obrigatório e certificado conferido contra o nome do servidor:
+          # sem isso o lftp não chega a enviar a senha. Poucas tentativas (o
+          # padrão é insistir mil vezes). Cada arquivo sobe com nome temporário
+          # e só então é renomeado: ninguém recebe arquivo pela metade.
+          lftp <<ROTEIRO
+          set cmd:fail-exit yes
+          set ftp:ssl-force yes
+          set ftp:ssl-protect-data yes
+          set ftp:ssl-protect-list yes
+          set ssl:verify-certificate yes
+          set ssl:check-hostname yes
+          set net:max-retries 3
+          set net:timeout 20
+          set net:reconnect-interval-base 5
+          set xfer:use-temp-file yes
+          set xfer:log no
+          open --env-password -u "$FTP_USUARIO" "ftp://$FTP_SERVIDOR"
+          echo "Etapa 1 de 3: conectando e abrindo a pasta do site."
+          cd "$FTP_DIRETORIO_REMOTO"
+          echo "Etapa 2 de 3: enviando os arquivos (menos o index.html)."
+          mirror -R $opcao_simular --no-perms --parallel=4 --verbose=1 --exclude '^index\.html\$' dist/ .
+          echo "Etapa 3 de 3: enviando o index.html por último."
+          $enviar_index
+          bye
+          ROTEIRO
+          echo "Envio concluído."
+
+      - name: Limpar arquivos do lftp
+        if: always()
+        run: rm -rf "$RUNNER_TEMP/lftp"
+
+      - name: Resumo
+        if: success() && steps.ponta.outputs.publicar == 'true'
+        env:
+          VERSAO: ${{ needs.build.outputs.versao }}
+          COMMIT: ${{ needs.build.outputs.commit }}
+        run: |
+          set -euo pipefail
+          modo="publicação real"
+          [[ "$SIMULAR" == "true" ]] && modo="simulação (nada foi enviado)"
+          {
+            echo "### Deploy"
+            echo "- Versão: $VERSAO"
+            echo "- Commit: $COMMIT"
+            echo "- Modo: $modo"
+          } >> "$GITHUB_STEP_SUMMARY"

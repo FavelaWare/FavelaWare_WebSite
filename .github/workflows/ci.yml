@@ -4,6 +4,8 @@ name: CI
 #
 # O id do job `ci` e o nome `Dependency audit` são os status checks que os
 # rulesets protect-main e protect-develop exigem pelo nome literal. Não renomear.
+# O `name: CI` também não muda: o deploy.yml espera este workflow terminar verde
+# na main para publicar o site.
 #
 # Nunca use `--if-present` nos passos abaixo: com ele o npm sai com 0 quando o
 # script não existe, e o CI fica verde sem ter rodado nada.

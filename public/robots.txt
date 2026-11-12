@@ -1,0 +1,13 @@
+# Áreas logadas não vão para o buscador (quem protege o dado é a RLS; isto só evita indexar telas de login)
+User-agent: *
+Disallow: /dashboard
+Disallow: /professor
+Disallow: /aluno
+Disallow: /banca
+Disallow: /login
+Disallow: /primeiro-acesso
+Disallow: /definir-senha
+Disallow: /dados-do-instrutor
+Disallow: /previa
+
+Sitemap: https://favelaware.com.br/sitemap.xml

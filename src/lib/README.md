@@ -20,6 +20,7 @@ Tipos, constantes e funções puras do assunto ficam no mesmo arquivo, fora da c
 | `equipe.ts`          | `servicoEquipe`          | instrutores e vínculo com turmas                                                     |
 | `acessos.ts`         | `servicoAcessos`         | login dos alunos (Edge Function)                                                     |
 | `solicitacoes.ts`    | `servicoSolicitacoes`    | pedidos dos alunos                                                                   |
+| `parcerias.ts`       | `servicoParcerias`       | pedidos do formulário "Seja um parceiro"                                             |
 | `material.ts`        | `servicoMaterial`        | trilhas e links do portal                                                            |
 | `atividades.ts`      | `servicoAtividades`      | atividades e correção                                                                |
 | `entregas.ts`        | `servicoEntregas`        | regras e envio das entregas                                                          |

@@ -5,6 +5,16 @@ dos commits (Conventional Commits) ou da label `version:*` no PR de release.
 
 Enquanto o site está em desenvolvimento, as versões ficam em 0.x (pré-lançamento). A 1.0.0 é o lançamento.
 
+## [1.0.0] - 2026-11-12
+
+Lançamento do site.
+
+### Adicionado
+
+- Página "Seja um parceiro" (`/seja-parceiro`), com botão na seção de parceiros da home: quem quer apoiar o FavelaWare informa nome, e-mail, telefone, empresa e como deseja contribuir. Os pedidos aparecem para o gestor no painel, em "Parcerias".
+- Prévia de link no WhatsApp e nas redes sociais, `robots.txt` e sitemap.
+- Publicação automática na Hostinger por FTP com TLS a cada merge na `main`, depois do CI verde (workflow `Deploy`).
+
 ## [0.8.0] - 2026-10-27
 
 ### Adicionado
