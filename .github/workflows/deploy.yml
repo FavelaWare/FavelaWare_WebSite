@@ -21,8 +21,9 @@ name: Deploy
 # Configuração (passo a passo no README, seção "Publicação"):
 #   variables do repositório:        VITE_SUPABASE_URL, VITE_SUPABASE_PUBLISHABLE_KEY,
 #                                    VITE_FAVELAB_URL (valores públicos do site)
-#   environment production (só main): secrets FTP_SERVIDOR, FTP_USUARIO, FTP_SENHA
-#                                    e variable FTP_DIRETORIO_REMOTO
+#   secrets FTP_SERVER, FTP_USERNAME, FTP_PASSWORD (no repositório ou no
+#   environment production, que só a main usa)
+#   variable FTP_DIRETORIO_REMOTO (environment production)
 #
 # Os dois jobs rodam em runner do GitHub, nunca em runner próprio: o CI roda
 # código de PR, e um runner persistente guardaria o que esse código deixou.
@@ -211,9 +212,9 @@ jobs:
       - name: Validar configuração do FTP
         if: steps.ponta.outputs.publicar == 'true'
         env:
-          FTP_SERVIDOR: ${{ secrets.FTP_SERVIDOR }}
-          FTP_USUARIO: ${{ secrets.FTP_USUARIO }}
-          FTP_SENHA: ${{ secrets.FTP_SENHA }}
+          FTP_SERVIDOR: ${{ secrets.FTP_SERVER }}
+          FTP_USUARIO: ${{ secrets.FTP_USERNAME }}
+          FTP_SENHA: ${{ secrets.FTP_PASSWORD }}
           FTP_DIRETORIO_REMOTO: ${{ vars.FTP_DIRETORIO_REMOTO }}
         run: |
           set -euo pipefail
@@ -261,9 +262,9 @@ jobs:
       - name: Publicar por FTP com TLS
         if: steps.ponta.outputs.publicar == 'true'
         env:
-          FTP_SERVIDOR: ${{ secrets.FTP_SERVIDOR }}
-          FTP_USUARIO: ${{ secrets.FTP_USUARIO }}
-          LFTP_PASSWORD: ${{ secrets.FTP_SENHA }}
+          FTP_SERVIDOR: ${{ secrets.FTP_SERVER }}
+          FTP_USUARIO: ${{ secrets.FTP_USERNAME }}
+          LFTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
           FTP_DIRETORIO_REMOTO: ${{ vars.FTP_DIRETORIO_REMOTO }}
         run: |
           set -euo pipefail
@@ -280,8 +281,11 @@ jobs:
             enviar_index="put -O . dist/index.html"
           fi
 
-          # TLS obrigatório e certificado conferido contra o nome do servidor:
-          # sem isso o lftp não chega a enviar a senha. Poucas tentativas (o
+          # TLS obrigatório e certificado válido: sem isso o lftp não chega a
+          # enviar a senha. O nome do servidor NÃO é conferido (check-hostname no),
+          # porque FTP_SERVER guarda o IP e o certificado só cobre *.hstgr.io.
+          # Para religar: ponha em FTP_SERVER o nome .hstgr.io do painel da
+          # hospedagem e volte check-hostname para yes. Poucas tentativas (o
           # padrão é insistir mil vezes). Cada arquivo sobe com nome temporário
           # e só então é renomeado: ninguém recebe arquivo pela metade.
           lftp <<ROTEIRO
@@ -290,7 +294,7 @@ jobs:
           set ftp:ssl-protect-data yes
           set ftp:ssl-protect-list yes
           set ssl:verify-certificate yes
-          set ssl:check-hostname yes
+          set ssl:check-hostname no
           set net:max-retries 3
           set net:timeout 20
           set net:reconnect-interval-base 5
